@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminUitslagForm from '@/components/AdminUitslagForm'
 import AdminToggles from '@/components/AdminToggles'
-import type { MasterUitslag, Prediction, Profile } from '@/types'
+import AdminWkIncidentsForm from '@/components/AdminWkIncidentsForm'
+import AdminMatchResults from '@/components/AdminMatchResults'
+import type { MasterUitslag, Prediction, Profile, Match, WkIncidentsUitslag } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,12 +12,20 @@ const DEFAULT_UITSLAG: MasterUitslag = {
   id: 1,
   selectie: [],
   basis_xi: [],
+  inzendingen_open: true,
+  scores_zichtbaar: false,
+  wk_poule_open: true,
+  wk_scores_zichtbaar: false,
+  updated_at: new Date().toISOString(),
+}
+
+const DEFAULT_WK_UITSLAG: WkIncidentsUitslag = {
+  id: 1,
   rode_kaart: '',
   gele_kaart: '',
   geblesseerde: '',
-  eerste_goal: '',
-  inzendingen_open: true,
-  scores_zichtbaar: false,
+  eerste_goal_nl: '',
+  topscorer_wk: '',
   updated_at: new Date().toISOString(),
 }
 
@@ -25,31 +35,37 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profileRaw } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
+  const { data: profileRaw } = await supabase.from('profiles').select('*').eq('id', user.id).single()
   const profile = profileRaw as Profile | null
   if (!profile?.is_admin) redirect('/')
 
-  const [{ data: uitslagRaw }, { data: predictionsRaw }, { data: profilesRaw }] = await Promise.all([
+  const [
+    { data: uitslagRaw },
+    { data: predictionsRaw },
+    { data: profilesRaw },
+    { data: matchesRaw },
+    { data: wkUitslagRaw },
+  ] = await Promise.all([
     supabase.from('master_uitslag').select('*').eq('id', 1).single(),
     supabase.from('predictions').select('user_id, updated_at'),
-    supabase.from('profiles').select('id, display_name'),
+    supabase.from('profiles').select('id, display_name, is_deelnemer'),
+    supabase.from('matches').select('*').order('match_number', { ascending: true }),
+    supabase.from('wk_incidents_uitslag').select('*').eq('id', 1).single(),
   ])
 
   const uitslag = uitslagRaw as MasterUitslag | null
   const predictions = (predictionsRaw ?? []) as Pick<Prediction, 'user_id' | 'updated_at'>[]
-  const profiles = (profilesRaw ?? []) as Pick<Profile, 'id' | 'display_name'>[]
+  const profiles = (profilesRaw ?? []) as (Pick<Profile, 'id' | 'display_name'> & { is_deelnemer: boolean })[]
+  const matches = (matchesRaw ?? []) as Match[]
+  const wkUitslag = wkUitslagRaw as WkIncidentsUitslag | null
 
   const effectiveUitslag: MasterUitslag = uitslag ?? DEFAULT_UITSLAG
+  const effectiveWkUitslag: WkIncidentsUitslag = wkUitslag ?? DEFAULT_WK_UITSLAG
 
   const predictionMap = new Map(predictions.map((p) => [p.user_id, p.updated_at]))
 
   const deelnemers = profiles
-    .filter((p) => p.id !== user.id)
+    .filter((p) => p.is_deelnemer !== false)
     .map((p) => ({
       ...p,
       heeftIngevuld: predictionMap.has(p.id),
@@ -65,26 +81,26 @@ export default async function AdminPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
       <div className="mb-8 flex items-center gap-3">
-        <div className="bg-oranje-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wide">
-          Admin
-        </div>
+        <div className="bg-oranje-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wide">Admin</div>
         <h1 className="text-3xl font-bold text-knvb-500">Dashboard</h1>
       </div>
 
       <div className="grid gap-8">
-        {/* Beheer toggles */}
+        {/* Toggles */}
         <div className="card">
           <h2 className="section-title">Beheer</h2>
           <AdminToggles
             inzendingen_open={effectiveUitslag.inzendingen_open}
             scores_zichtbaar={effectiveUitslag.scores_zichtbaar}
+            wk_poule_open={effectiveUitslag.wk_poule_open}
+            wk_scores_zichtbaar={effectiveUitslag.wk_scores_zichtbaar}
           />
         </div>
 
-        {/* Deelnemers overzicht */}
+        {/* Deelnemers */}
         <div className="card">
           <h2 className="section-title">
-            Deelnemers — {aantalIngevuld} / {deelnemers.length} ingevuld
+            Deelnemers Pre-pool — {aantalIngevuld} / {deelnemers.length} ingevuld
           </h2>
           {deelnemers.length === 0 ? (
             <p className="text-gray-500 text-sm">Nog geen deelnemers.</p>
@@ -104,24 +120,13 @@ export default async function AdminPage() {
                       <td className="py-2 px-3 font-medium text-gray-900">{d.display_name}</td>
                       <td className="py-2 px-3 text-center">
                         {d.heeftIngevuld ? (
-                          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                            ✓ Ingevuld
-                          </span>
+                          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">✓ Ingevuld</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full">
-                            Niet ingevuld
-                          </span>
+                          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full">Niet ingevuld</span>
                         )}
                       </td>
                       <td className="py-2 px-3 text-right text-gray-500">
-                        {d.ingevuldOp
-                          ? new Date(d.ingevuldOp).toLocaleString('nl-NL', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : '—'}
+                        {d.ingevuldOp ? new Date(d.ingevuldOp).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                     </tr>
                   ))}
@@ -131,13 +136,27 @@ export default async function AdminPage() {
           )}
         </div>
 
-        {/* Master uitslag */}
+        {/* Pre-pool uitslag */}
         <div className="card">
-          <h2 className="section-title">Master Uitslag Invullen</h2>
-          <p className="text-sm text-gray-600 mb-6">
-            Vul de officiële WK-gegevens in en klik op opslaan. Scores worden direct herberekend.
-          </p>
+          <h2 className="section-title">Pre-pool Uitslag Invullen</h2>
+          <p className="text-sm text-gray-600 mb-6">Officiële selectie + basis XI. Scores worden direct herberekend.</p>
           <AdminUitslagForm uitslag={effectiveUitslag} />
+        </div>
+
+        {/* WK incidents uitslag */}
+        <div className="card">
+          <h2 className="section-title">WK Poule — NL Incidenten & Topscorer</h2>
+          <p className="text-sm text-gray-600 mb-6">Vul de werkelijke antwoorden in. WK scores worden direct herberekend.</p>
+          <AdminWkIncidentsForm uitslag={effectiveWkUitslag} />
+        </div>
+
+        {/* Match results */}
+        <div className="card">
+          <h2 className="section-title">WK Poule — Wedstrijduitslagen</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Vul de uitslag in en markeer wedstrijden als afgerond. Klik daarna op opslaan.
+          </p>
+          <AdminMatchResults matches={matches} />
         </div>
       </div>
     </div>

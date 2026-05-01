@@ -34,29 +34,20 @@ export default function Navbar({ user, profile }: Props) {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">
-            <Link
-              href="/ranglijst"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/ranglijst')
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
-              }`}
-            >
+            <Link href="/ranglijst" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/ranglijst') ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
               Ranglijst
             </Link>
 
             {user ? (
               <>
                 {profile?.is_deelnemer !== false && (
-                  <Link
-                    href="/mijn-voorspelling"
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive('/mijn-voorspelling')
-                        ? 'bg-white/20 text-white'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    Mijn Voorspelling
+                  <Link href="/mijn-voorspelling" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/mijn-voorspelling') ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                    Pre-pool
+                  </Link>
+                )}
+                {profile?.is_deelnemer !== false && (
+                  <Link href="/wk-poule" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/wk-poule') ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                    WK Poule
                   </Link>
                 )}
 
@@ -128,7 +119,12 @@ export default function Navbar({ user, profile }: Props) {
               <>
                 {profile?.is_deelnemer !== false && (
                   <Link href="/mijn-voorspelling" className="block px-3 py-2 rounded-lg text-sm hover:bg-white/10" onClick={() => setMenuOpen(false)}>
-                    Mijn Voorspelling
+                    Pre-pool
+                  </Link>
+                )}
+                {profile?.is_deelnemer !== false && (
+                  <Link href="/wk-poule" className="block px-3 py-2 rounded-lg text-sm hover:bg-white/10" onClick={() => setMenuOpen(false)}>
+                    WK Poule
                   </Link>
                 )}
                 {profile?.is_admin && (

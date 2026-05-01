@@ -18,10 +18,6 @@ function toArray(arr: string[] | undefined | null, len: number): string[] {
 export default function AdminUitslagForm({ uitslag }: Props) {
   const [selectie, setSelectie] = useState<string[]>(toArray(uitslag.selectie, 26))
   const [basisXi, setBasisXi] = useState<string[]>(toArray(uitslag.basis_xi, 11))
-  const [rodeKaart, setRodeKaart] = useState(uitslag.rode_kaart ?? '')
-  const [geleKaart, setGeleKaart] = useState(uitslag.gele_kaart ?? '')
-  const [geblesseerde, setGeblesseerde] = useState(uitslag.geblesseerde ?? '')
-  const [eersteGoal, setEersteGoal] = useState(uitslag.eerste_goal ?? '')
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<'idle' | 'saving' | 'recalculating' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -46,10 +42,6 @@ export default function AdminUitslagForm({ uitslag }: Props) {
         id: 1,
         selectie: selectie.map((s) => s.trim()),
         basis_xi: basisXi.map((s) => s.trim()),
-        rode_kaart: rodeKaart.trim(),
-        gele_kaart: geleKaart.trim(),
-        geblesseerde: geblesseerde.trim(),
-        eerste_goal: eersteGoal.trim(),
         updated_at: new Date().toISOString(),
       })
 
@@ -123,35 +115,8 @@ export default function AdminUitslagForm({ uitslag }: Props) {
         </div>
       </div>
 
-      {/* Incidenten */}
-      <div>
-        <h3 className="font-semibold text-gray-800 mb-3">Incidenten</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">🟥 Eerste Rode Kaart</label>
-            <input type="text" value={rodeKaart} onChange={(e) => setRodeKaart(e.target.value)} className="input-field" placeholder="Spelernaam" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">🟨 Eerste Gele Kaart</label>
-            <input type="text" value={geleKaart} onChange={(e) => setGeleKaart(e.target.value)} className="input-field" placeholder="Spelernaam" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">🩹 Eerste Geblesseerde</label>
-            <input type="text" value={geblesseerde} onChange={(e) => setGeblesseerde(e.target.value)} className="input-field" placeholder="Spelernaam" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">⚽ Eerste Goal</label>
-            <input type="text" value={eersteGoal} onChange={(e) => setEersteGoal(e.target.value)} className="input-field" placeholder="Spelernaam" />
-          </div>
-        </div>
-      </div>
-
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="btn-primary"
-        >
+        <button onClick={handleSave} disabled={saving} className="btn-primary">
           {status === 'saving' && 'Uitslag opslaan...'}
           {status === 'recalculating' && 'Scores berekenen...'}
           {(status === 'idle' || status === 'success' || status === 'error') && 'Uitslag Opslaan & Scores Herberekenen'}
