@@ -11,6 +11,16 @@ export default async function MijnVoorspellingPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profileRaw } = await supabase
+    .from('profiles')
+    .select('is_deelnemer')
+    .eq('id', user.id)
+    .single()
+
+  if ((profileRaw as { is_deelnemer: boolean } | null)?.is_deelnemer === false) {
+    redirect('/admin')
+  }
+
   const [
     { data: predictionRaw },
     { data: uitslagRaw },

@@ -47,16 +47,18 @@ export default function Navbar({ user, profile }: Props) {
 
             {user ? (
               <>
-                <Link
-                  href="/mijn-voorspelling"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/mijn-voorspelling')
-                      ? 'bg-white/20 text-white'
-                      : 'text-white/80 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  Mijn Voorspelling
-                </Link>
+                {profile?.is_deelnemer !== false && (
+                  <Link
+                    href="/mijn-voorspelling"
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive('/mijn-voorspelling')
+                        ? 'bg-white/20 text-white'
+                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    Mijn Voorspelling
+                  </Link>
+                )}
 
                 {profile?.is_admin && (
                   <Link
@@ -124,9 +126,11 @@ export default function Navbar({ user, profile }: Props) {
             </Link>
             {user ? (
               <>
-                <Link href="/mijn-voorspelling" className="block px-3 py-2 rounded-lg text-sm hover:bg-white/10" onClick={() => setMenuOpen(false)}>
-                  Mijn Voorspelling
-                </Link>
+                {profile?.is_deelnemer !== false && (
+                  <Link href="/mijn-voorspelling" className="block px-3 py-2 rounded-lg text-sm hover:bg-white/10" onClick={() => setMenuOpen(false)}>
+                    Mijn Voorspelling
+                  </Link>
+                )}
                 {profile?.is_admin && (
                   <Link href="/admin" className="block px-3 py-2 rounded-lg text-sm text-oranje-300 hover:bg-white/10" onClick={() => setMenuOpen(false)}>
                     Admin
