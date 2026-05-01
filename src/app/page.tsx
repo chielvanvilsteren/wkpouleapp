@@ -1,11 +1,13 @@
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import RotatingFlag from '@/components/RotatingFlag'
-import CountdownTimer from '@/components/CountdownTimer'
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import RotatingFlag from "@/components/RotatingFlag";
+import CountdownTimer from "@/components/CountdownTimer";
 
 export default async function LandingPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
     <div className="min-h-screen">
@@ -29,30 +31,44 @@ export default async function LandingPage() {
               </div>
 
               <h1 className="text-5xl md:text-6xl font-black tracking-tight mb-4 leading-none">
-                WK<br />
+                WK
+                <br />
                 <span className="text-oranje-400">Pool</span>
                 <span className="text-white"> 2026</span>
               </h1>
 
               <p className="text-white/70 text-lg mb-8 max-w-md">
-                Voorspel de WK-selectie, de basis XI en elke wedstrijd. Wie wint de poule?
+                Voorspel de WK-selectie, de basis XI en elke wedstrijd. Wie wint
+                de poule?
               </p>
 
               {user ? (
                 <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
-                  <Link href="/mijn-voorspelling" className="bg-oranje-500 hover:bg-oranje-600 text-white font-bold px-8 py-3.5 rounded-xl transition-colors inline-block text-center">
+                  <Link
+                    href="/mijn-voorspelling"
+                    className="bg-oranje-500 hover:bg-oranje-600 text-white font-bold px-8 py-3.5 rounded-xl transition-colors inline-block text-center"
+                  >
                     Mijn Voorspelling →
                   </Link>
-                  <Link href="/ranglijst" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors inline-block text-center">
+                  <Link
+                    href="/ranglijst"
+                    className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors inline-block text-center"
+                  >
                     Ranglijst
                   </Link>
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
-                  <Link href="/register" className="bg-oranje-500 hover:bg-oranje-600 text-white font-bold px-8 py-3.5 rounded-xl transition-colors inline-block text-center">
+                  <Link
+                    href="/register"
+                    className="bg-oranje-500 hover:bg-oranje-600 text-white font-bold px-8 py-3.5 rounded-xl transition-colors inline-block text-center"
+                  >
                     Aanmelden
                   </Link>
-                  <Link href="/login" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors inline-block text-center">
+                  <Link
+                    href="/login"
+                    className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors inline-block text-center"
+                  >
                     Inloggen
                   </Link>
                 </div>
@@ -86,7 +102,9 @@ export default async function LandingPage() {
             </div>
             <div>
               <div className="text-3xl font-black text-knvb-600">37+</div>
-              <div className="text-sm text-gray-500 mt-0.5">Max punten pre-poule</div>
+              <div className="text-sm text-gray-500 mt-0.5">
+                Max punten pre-poule
+              </div>
             </div>
           </div>
         </div>
@@ -94,17 +112,26 @@ export default async function LandingPage() {
 
       {/* Poule overview cards */}
       <section className="max-w-4xl mx-auto px-4 py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Twee poules, dubbel de spanning</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+          Twee poules, dubbel de spanning
+        </h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="card border-l-4 border-l-oranje-500">
             <div className="text-2xl mb-2">📋</div>
             <h3 className="font-bold text-lg text-gray-900 mb-1">Pre-Pool</h3>
             <p className="text-gray-600 text-sm mb-4">
-              Voorspel de officiële 26-mans selectie en de basis XI tegen Japan — voor het WK begint.
+              Voorspel de officiële 26-mans selectie en de basis XI tegen Japan
+              — voor het WK begint.
             </p>
             <ul className="text-sm text-gray-600 space-y-1">
-              <li>✓ 1 punt per correct selectiespeler <span className="text-gray-400">(max 26)</span></li>
-              <li>✓ 1 punt per correcte basis XI-speler <span className="text-gray-400">(max 11)</span></li>
+              <li>
+                ✓ 1 punt per correct selectiespeler{" "}
+                <span className="text-gray-400">(max 26)</span>
+              </li>
+              <li>
+                ✓ 1 punt per correcte basis XI-speler{" "}
+                <span className="text-gray-400">(max 11)</span>
+              </li>
             </ul>
           </div>
 
@@ -112,7 +139,8 @@ export default async function LandingPage() {
             <div className="text-2xl mb-2">⚽</div>
             <h3 className="font-bold text-lg text-gray-900 mb-1">WK Poule</h3>
             <p className="text-gray-600 text-sm mb-4">
-              Voorspel alle 104 WK-wedstrijden, NL-incidenten en de WK-topscorer.
+              Voorspel alle 104 WK-wedstrijden, NL-incidenten en de
+              WK-topscorer.
             </p>
             <ul className="text-sm text-gray-600 space-y-1">
               <li>✓ 3 punten exacte uitslag</li>
@@ -128,13 +156,18 @@ export default async function LandingPage() {
         <section className="max-w-4xl mx-auto px-4 pb-16">
           <div className="bg-gradient-to-r from-knvb-600 to-knvb-500 text-white rounded-2xl p-8 text-center">
             <h3 className="text-2xl font-bold mb-2">Doe mee!</h3>
-            <p className="text-white/80 mb-6">Maak een account aan en vul je voorspelling in vóór het WK begint.</p>
-            <Link href="/register" className="bg-oranje-500 hover:bg-oranje-600 text-white font-bold px-8 py-3 rounded-xl transition-colors inline-block">
+            <p className="text-white/80 mb-6">
+              Maak een account aan en vul je voorspelling in vóór het WK begint.
+            </p>
+            <Link
+              href="/register"
+              className="bg-oranje-500 hover:bg-oranje-600 text-white font-bold px-8 py-3 rounded-xl transition-colors inline-block"
+            >
               Aanmelden →
             </Link>
           </div>
         </section>
       )}
     </div>
-  )
+  );
 }
