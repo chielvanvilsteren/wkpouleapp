@@ -20,6 +20,7 @@ export default async function RanglijstPage() {
   const { data: profilesRaw } = await supabase
     .from("profiles")
     .select("id, display_name")
+    .eq("is_deelnemer", true)
     .order("display_name", { ascending: true });
 
   const profiles = (profilesRaw ?? []) as Pick<

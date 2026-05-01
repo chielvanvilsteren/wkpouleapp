@@ -2,6 +2,7 @@ export type Profile = {
   id: string
   display_name: string
   is_admin: boolean
+  is_deelnemer: boolean
   created_at: string
 }
 
