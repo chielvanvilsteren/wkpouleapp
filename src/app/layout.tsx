@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, JetBrains_Mono } from 'next/font/google'
 import { headers } from 'next/headers'
 import './globals.css'
 import Navbar from '@/components/Navbar'
@@ -9,10 +9,11 @@ import type { Profile } from '@/types'
 export const dynamic = 'force-dynamic'
 
 const inter = Inter({ subsets: ['latin'] })
+const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains' })
 
 export const metadata: Metadata = {
-  title: 'WK 2026 Oranje Pool',
-  description: 'Voorspel de WK 2026 selectie, basis XI en incidenten van Oranje',
+  title: 'WK Pool 2026',
+  description: 'Voorspel WK 2026 wedstrijden, selectie en incidenten',
 }
 
 export default async function RootLayout({
@@ -39,14 +40,14 @@ export default async function RootLayout({
 
   return (
     <html lang="nl">
-      <body className={inter.className}>
+      <body className={`${inter.className} ${jetbrains.variable}`}>
         {!isDisplay && <Navbar user={user} profile={profile} />}
         <main className={isDisplay ? '' : 'min-h-screen'}>
           {children}
         </main>
         {!isDisplay && (
           <footer className="bg-knvb-500 text-white/60 text-center text-xs py-4 mt-16">
-            WK 2026 Oranje Pool &middot; Veel succes! 🇳🇱
+            WK Pool 2026 &middot; Veel succes! 🇳🇱
           </footer>
         )}
       </body>

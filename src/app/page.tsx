@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import WavingFlag from '@/components/WavingFlag'
+import RotatingFlag from '@/components/RotatingFlag'
 import CountdownTimer from '@/components/CountdownTimer'
 
 export default async function LandingPage() {
@@ -20,17 +20,17 @@ export default async function LandingPage() {
         />
 
         <div className="relative max-w-5xl mx-auto px-4 py-16 md:py-24">
-          <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
+          <div className="flex flex-col md:flex-row items-center gap-10 md:gap-12">
             {/* Left: text + CTA */}
-            <div className="flex-1 text-center md:text-left">
+            <div className="flex-1 text-center md:text-left min-w-0">
               <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium text-white/80 mb-6">
                 <span className="w-2 h-2 bg-oranje-400 rounded-full animate-pulse" />
                 WK 2026 · Canada / Mexico / VS
               </div>
 
               <h1 className="text-5xl md:text-6xl font-black tracking-tight mb-4 leading-none">
-                Oranje<br />
-                <span className="text-oranje-400">Poule</span>
+                WK<br />
+                <span className="text-oranje-400">Pool</span>
                 <span className="text-white"> 2026</span>
               </h1>
 
@@ -59,9 +59,9 @@ export default async function LandingPage() {
               )}
             </div>
 
-            {/* Right: waving flag */}
-            <div className="shrink-0">
-              <WavingFlag width={460} height={307} />
+            {/* Right: rotating flags — fills container, max 560px on desktop */}
+            <div className="w-full md:w-[560px] shrink-0">
+              <RotatingFlag className="rounded-lg drop-shadow-2xl" />
             </div>
           </div>
 

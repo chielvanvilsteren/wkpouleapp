@@ -8,6 +8,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        jetbrains: ['var(--font-jetbrains)', 'monospace'],
+      },
       colors: {
         oranje: {
           DEFAULT: '#FF6200',
