@@ -101,6 +101,7 @@ export default function PredictieForm({
   const [confirmDefinitief, setConfirmDefinitief] = useState(false);
 
   const canEdit = isOpen && !isDefinitief;
+  const filledSelectie = selectie.filter((s) => s.trim() !== "").length;
   const filledBasisXi = basisXi.filter((s) => s.trim() !== "").length;
   const filledIncidenten = [
     rodeKaart,
