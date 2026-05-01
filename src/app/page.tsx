@@ -61,7 +61,7 @@ export default async function LandingPage() {
 
             {/* Right: waving flag */}
             <div className="shrink-0">
-              <WavingFlag width={320} height={213} />
+              <WavingFlag width={460} height={307} />
             </div>
           </div>
 

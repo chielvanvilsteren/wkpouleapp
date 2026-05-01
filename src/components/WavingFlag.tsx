@@ -39,13 +39,6 @@ export default function WavingFlag({ width = 400, height = 267 }: { width?: numb
     scene.add(dirLight)
     scene.add(new THREE.AmbientLight('#aaaaaa'))
 
-    // Flagpole — golden cylinder
-    const poleGeo = new THREE.CylinderGeometry(0.3, 0.3, SIZE_H + 8, 12)
-    const poleMat = new THREE.MeshPhongMaterial({ color: '#c8a060', shininess: 60 })
-    const pole = new THREE.Mesh(poleGeo, poleMat)
-    pole.position.set(-SIZE_W / 2, 0, 0)
-    scene.add(pole)
-
     // Dutch flag texture — drawn on canvas
     const texCanvas = document.createElement('canvas')
     texCanvas.width = 300
@@ -71,8 +64,6 @@ export default function WavingFlag({ width = 400, height = 267 }: { width?: numb
       for (let y = 0; y <= SEG_H; y++) {
         for (let x = 0; x <= SEG_W; x++) {
           const i = x + y * (SEG_W + 1)
-          // x offset from left edge: flag is centered, so shift by half width
-          const xLocal = x - SEG_W / 2 + SEG_W / 2  // x from 0..SEG_W
           posAttr.setZ(i, Math.sin(H_WAVE * x + V_WAVE * y - time) * SWING * x / 4)
         }
       }

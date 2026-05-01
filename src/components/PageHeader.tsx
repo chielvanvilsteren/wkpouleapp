@@ -4,9 +4,10 @@ type Props = {
   title: string
   subtitle?: ReactNode
   badge?: string
+  countdown?: ReactNode
 }
 
-export default function PageHeader({ title, subtitle, badge }: Props) {
+export default function PageHeader({ title, subtitle, badge, countdown }: Props) {
   return (
     <div className="bg-gradient-to-r from-knvb-700 to-knvb-500 text-white px-4 py-8">
       <div className="max-w-4xl mx-auto">
@@ -17,6 +18,7 @@ export default function PageHeader({ title, subtitle, badge }: Props) {
         )}
         <h1 className="text-3xl md:text-4xl font-black tracking-tight">{title}</h1>
         {subtitle && <div className="text-white/70 mt-1.5 text-sm">{subtitle}</div>}
+        {countdown && <div className="mt-6">{countdown}</div>}
       </div>
     </div>
   )

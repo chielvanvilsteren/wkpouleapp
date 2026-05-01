@@ -8,6 +8,7 @@ type Props = {
   inzendingen_deadline: string | null
   scores_zichtbaar: boolean
   wk_poule_open: boolean
+  wk_poule_deadline: string | null
   wk_scores_zichtbaar: boolean
 }
 
@@ -43,11 +44,12 @@ function toDateInput(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-export default function AdminToggles({ inzendingen_open, inzendingen_deadline, scores_zichtbaar, wk_poule_open, wk_scores_zichtbaar }: Props) {
+export default function AdminToggles({ inzendingen_open, inzendingen_deadline, scores_zichtbaar, wk_poule_open, wk_poule_deadline, wk_scores_zichtbaar }: Props) {
   const [inzendingenOpen, setInzendingenOpen] = useState(inzendingen_open)
   const [deadline, setDeadline] = useState(toDateInput(inzendingen_deadline))
   const [scoresZichtbaar, setScoresZichtbaar] = useState(scores_zichtbaar)
   const [wkPouleOpen, setWkPouleOpen] = useState(wk_poule_open)
+  const [wkDeadline, setWkDeadline] = useState(toDateInput(wk_poule_deadline))
   const [wkScoresZichtbaar, setWkScoresZichtbaar] = useState(wk_scores_zichtbaar)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
@@ -68,9 +70,14 @@ export default function AdminToggles({ inzendingen_open, inzendingen_deadline, s
 
   const saveDeadline = async (value: string) => {
     setDeadline(value)
-    // Store as end-of-day (23:59:59) in local time
     const iso = value ? new Date(`${value}T23:59:59`).toISOString() : null
     await save({ inzendingen_deadline: iso })
+  }
+
+  const saveWkDeadline = async (value: string) => {
+    setWkDeadline(value)
+    const iso = value ? new Date(`${value}T23:59:59`).toISOString() : null
+    await save({ wk_poule_deadline: iso })
   }
 
   return (
@@ -135,6 +142,38 @@ export default function AdminToggles({ inzendingen_open, inzendingen_deadline, s
           description="Wedstrijden sluiten automatisch 5 minuten voor aftrap. Incidenten/topscorer via deze toggle."
           disabled={saving}
         />
+
+        {/* WK poule deadline picker */}
+        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+          <div className="font-semibold text-gray-800 mb-1">Deadline groepsfase inzendingen</div>
+          <div className="text-sm text-gray-500 mb-3">
+            Na deze datum zijn incidenten &amp; topscorer automatisch gesloten. Leeg = geen automatische deadline.
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={wkDeadline}
+              onChange={(e) => saveWkDeadline(e.target.value)}
+              disabled={saving}
+              className="input-field text-sm"
+            />
+            {wkDeadline && (
+              <button
+                onClick={() => saveWkDeadline('')}
+                disabled={saving}
+                className="text-sm text-red-500 hover:text-red-700 font-medium"
+              >
+                Wissen
+              </button>
+            )}
+          </div>
+          {wkDeadline && (
+            <p className="text-xs text-gray-400 mt-2">
+              Sluit: {new Date(`${wkDeadline}T23:59:59`).toLocaleString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
+
         <Toggle
           checked={wkScoresZichtbaar}
           onChange={(val) => { setWkScoresZichtbaar(val); save({ wk_scores_zichtbaar: val }, () => setWkScoresZichtbaar(!val)) }}

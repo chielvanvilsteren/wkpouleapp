@@ -17,6 +17,7 @@ const DEFAULT_UITSLAG: MasterUitslag = {
   inzendingen_deadline: null,
   scores_zichtbaar: false,
   wk_poule_open: true,
+  wk_poule_deadline: null,
   wk_scores_zichtbaar: false,
   updated_at: new Date().toISOString(),
 }
@@ -97,6 +98,7 @@ export default async function AdminPage() {
             inzendingen_deadline={effectiveUitslag.inzendingen_deadline}
             scores_zichtbaar={effectiveUitslag.scores_zichtbaar}
             wk_poule_open={effectiveUitslag.wk_poule_open}
+            wk_poule_deadline={effectiveUitslag.wk_poule_deadline}
             wk_scores_zichtbaar={effectiveUitslag.wk_scores_zichtbaar}
           />
         </div>

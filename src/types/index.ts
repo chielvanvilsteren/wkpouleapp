@@ -25,6 +25,7 @@ export type MasterUitslag = {
   inzendingen_deadline: string | null
   scores_zichtbaar: boolean
   wk_poule_open: boolean
+  wk_poule_deadline: string | null
   wk_scores_zichtbaar: boolean
   updated_at: string
 }

@@ -57,13 +57,11 @@ export default async function MijnVoorspellingPage() {
         title="Pre-Pool Voorspelling"
         badge="Pre-Pool"
         subtitle={<>Selectie (26 spelers) + Basis XI — maximaal 37 punten &middot; {statusNode}</>}
+        countdown={deadline && !deadlinePassed
+          ? <DeadlineCountdown deadlineIso={deadline.toISOString()} label="Deadline pre-pool" />
+          : undefined}
       />
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {deadline && !deadlinePassed && (
-          <div className="mb-6">
-            <DeadlineCountdown deadlineIso={deadline.toISOString()} />
-          </div>
-        )}
         <PredictieForm
           initialPrediction={prediction}
           isOpen={isOpen}
