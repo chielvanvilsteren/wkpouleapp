@@ -1,0 +1,40 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - heading "⚠️ Do not enter passwords or personal information on this page. ⚠️" [level=1] [ref=e3]
+    - text: This is a code demo posted by a web developer on
+    - link "CodePen" [ref=e4] [cursor=pointer]:
+      - /url: https://codepen.io
+    - text: .
+    - text: A referer from CodePen is required to render this page view, and your browser is not sending one (
+    - link "more details" [ref=e5] [cursor=pointer]:
+      - /url: https://blog.codepen.io/2017/10/05/regarding-referer-headers/
+    - text: ).
+  - main [ref=e6]:
+    - iframe [ref=e7]:
+      - generic [active] [ref=f4e1]:
+        - heading "flags waves" [level=1] [ref=f4e2]
+        - main [ref=f4e3]:
+          - generic [ref=f4e4]:
+            - generic [ref=f4e5]:
+              - paragraph [ref=f4e6]: color
+              - textbox [ref=f4e7]: "#ffffff"
+            - generic [ref=f4e8]:
+              - paragraph [ref=f4e9]: image
+              - button "Choose File" [ref=f4e10]
+            - generic [ref=f4e11]:
+              - paragraph [ref=f4e12]: camera
+              - slider [ref=f4e13]: "0"
+              - generic [ref=f4e14]: "[0°]"
+            - generic [ref=f4e15]:
+              - paragraph [ref=f4e16]: horizontal
+              - slider [ref=f4e17]: "0.5"
+            - generic [ref=f4e18]:
+              - paragraph [ref=f4e19]: vertical
+              - slider [ref=f4e20]: "0.3"
+            - generic [ref=f4e21]:
+              - paragraph [ref=f4e22]: swing
+              - slider [ref=f4e23]: "0.2"
+            - generic [ref=f4e24]:
+              - paragraph [ref=f4e25]: speed
+              - slider [ref=f4e26]: "0.5"
+            - button "UNDO" [ref=f4e28]
