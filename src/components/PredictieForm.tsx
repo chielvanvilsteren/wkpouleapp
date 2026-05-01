@@ -1,17 +1,17 @@
-'use client'
+"use client";
 
-import { useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { Prediction, Score } from '@/types'
+import { useState, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { Prediction, Score } from "@/types";
 
 type Props = {
-  initialPrediction: Prediction | null
-  isOpen: boolean
-  score: Score | null
-}
+  initialPrediction: Prediction | null;
+  isOpen: boolean;
+  score: Score | null;
+};
 
 function ProgressBar({ filled, total }: { filled: number; total: number }) {
-  const pct = total > 0 ? Math.round((filled / total) * 100) : 0
+  const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
   return (
     <div className="flex items-center gap-3 mb-4">
       <div className="flex-1 bg-gray-200 rounded-full h-2.5">
@@ -24,7 +24,7 @@ function ProgressBar({ filled, total }: { filled: number; total: number }) {
         {filled} / {total}
       </span>
     </div>
-  )
+  );
 }
 
 function PlayerGrid({
@@ -33,16 +33,18 @@ function PlayerGrid({
   prefix,
   disabled,
 }: {
-  values: string[]
-  onChange: (idx: number, val: string) => void
-  prefix: string
-  disabled: boolean
+  values: string[];
+  onChange: (idx: number, val: string) => void;
+  prefix: string;
+  disabled: boolean;
 }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {values.map((val, idx) => (
         <div key={idx} className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 w-6 text-right shrink-0">{idx + 1}.</span>
+          <span className="text-xs text-gray-400 w-6 text-right shrink-0">
+            {idx + 1}.
+          </span>
           <input
             type="text"
             value={val}
@@ -54,63 +56,88 @@ function PlayerGrid({
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 function toArray(arr: string[] | undefined | null, len: number): string[] {
-  if (!arr || arr.length === 0) return Array(len).fill('')
-  const result = [...arr]
-  while (result.length < len) result.push('')
-  return result.slice(0, len)
+  if (!arr || arr.length === 0) return Array(len).fill("");
+  const result = [...arr];
+  while (result.length < len) result.push("");
+  return result.slice(0, len);
 }
 
-export default function PredictieForm({ initialPrediction, isOpen, score }: Props) {
+export default function PredictieForm({
+  initialPrediction,
+  isOpen,
+  score,
+}: Props) {
   const [selectie, setSelectie] = useState<string[]>(
-    toArray(initialPrediction?.selectie, 26)
-  )
+    toArray(initialPrediction?.selectie, 26),
+  );
   const [basisXi, setBasisXi] = useState<string[]>(
-    toArray(initialPrediction?.basis_xi, 11)
-  )
-  const [rodeKaart, setRodeKaart] = useState(initialPrediction?.rode_kaart ?? '')
-  const [geleKaart, setGeleKaart] = useState(initialPrediction?.gele_kaart ?? '')
-  const [geblesseerde, setGeblesseerde] = useState(initialPrediction?.geblesseerde ?? '')
-  const [eersteGoal, setEersteGoal] = useState(initialPrediction?.eerste_goal ?? '')
+    toArray(initialPrediction?.basis_xi, 11),
+  );
+  const [rodeKaart, setRodeKaart] = useState(
+    initialPrediction?.rode_kaart ?? "",
+  );
+  const [geleKaart, setGeleKaart] = useState(
+    initialPrediction?.gele_kaart ?? "",
+  );
+  const [geblesseerde, setGeblesseerde] = useState(
+    initialPrediction?.geblesseerde ?? "",
+  );
+  const [eersteGoal, setEersteGoal] = useState(
+    initialPrediction?.eerste_goal ?? "",
+  );
 
-  const [saving, setSaving] = useState(false)
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
+  const [isDefinitief, setIsDefinitief] = useState(
+    initialPrediction?.is_definitief ?? false,
+  );
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "draft" | "definitief" | "error"
+  >("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [confirmDefinitief, setConfirmDefinitief] = useState(false);
 
-  const filledSelectie = selectie.filter((s) => s.trim() !== '').length
-  const filledBasisXi = basisXi.filter((s) => s.trim() !== '').length
-  const filledIncidenten = [rodeKaart, geleKaart, geblesseerde, eersteGoal].filter((s) => s.trim() !== '').length
+  const canEdit = isOpen && !isDefinitief;
+  const filledBasisXi = basisXi.filter((s) => s.trim() !== "").length;
+  const filledIncidenten = [
+    rodeKaart,
+    geleKaart,
+    geblesseerde,
+    eersteGoal,
+  ].filter((s) => s.trim() !== "").length;
 
   const updateSelectie = useCallback((idx: number, val: string) => {
     setSelectie((prev) => {
-      const next = [...prev]
-      next[idx] = val
-      return next
-    })
-  }, [])
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  }, []);
 
   const updateBasisXi = useCallback((idx: number, val: string) => {
     setBasisXi((prev) => {
-      const next = [...prev]
-      next[idx] = val
-      return next
-    })
-  }, [])
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  }, []);
 
-  const handleSave = async () => {
-    setSaving(true)
-    setSaveStatus('idle')
-    setErrorMsg('')
+  const handleSave = async (definitief: boolean) => {
+    setSaving(true);
+    setSaveStatus("idle");
+    setErrorMsg("");
 
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
-      setErrorMsg('Niet ingelogd.')
-      setSaving(false)
-      return
+      setErrorMsg("Niet ingelogd.");
+      setSaving(false);
+      return;
     }
 
     const payload = {
@@ -121,23 +148,30 @@ export default function PredictieForm({ initialPrediction, isOpen, score }: Prop
       gele_kaart: geleKaart.trim(),
       geblesseerde: geblesseerde.trim(),
       eerste_goal: eersteGoal.trim(),
+      is_definitief: definitief,
       updated_at: new Date().toISOString(),
-    }
+    };
 
     const { error } = await supabase
-      .from('predictions')
-      .upsert(payload, { onConflict: 'user_id' })
+      .from("predictions")
+      .upsert(payload, { onConflict: "user_id" });
 
     if (error) {
-      setErrorMsg(error.message)
-      setSaveStatus('error')
+      setErrorMsg(error.message);
+      setSaveStatus("error");
     } else {
-      setSaveStatus('success')
-      setTimeout(() => setSaveStatus('idle'), 4000)
+      if (definitief) {
+        setIsDefinitief(true);
+        setSaveStatus("definitief");
+      } else {
+        setSaveStatus("draft");
+        setTimeout(() => setSaveStatus("idle"), 4000);
+      }
     }
 
-    setSaving(false)
-  }
+    setSaving(false);
+    setConfirmDefinitief(false);
+  };
 
   return (
     <div className="space-y-8">
@@ -151,73 +185,97 @@ export default function PredictieForm({ initialPrediction, isOpen, score }: Prop
               <span className="text-white/70 ml-1">/ 77</span>
             </div>
             <div className="text-sm text-white/80 space-y-0.5">
-              <div>Selectie: <strong>{score.selectie_punten}</strong> / 26</div>
-              <div>Basis XI: <strong>{score.basis_xi_punten}</strong> / 11</div>
-              <div>Incidenten: <strong>{score.incidenten_punten}</strong> / 40</div>
+              <div>
+                Selectie: <strong>{score.selectie_punten}</strong> / 26
+              </div>
+              <div>
+                Basis XI: <strong>{score.basis_xi_punten}</strong> / 11
+              </div>
+              <div>
+                Incidenten: <strong>{score.incidenten_punten}</strong> / 40
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {!isOpen && (
+      {isDefinitief && (
+        <div className="bg-green-50 border border-green-300 text-green-800 px-4 py-3 rounded-lg text-sm font-medium">
+          ✅ Voorspelling definitief ingezonden. Aanpassingen zijn niet meer
+          mogelijk.
+        </div>
+      )}
+
+      {!isOpen && !isDefinitief && (
         <div className="bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-lg text-sm font-medium">
-          ⚠️ Inzendingen zijn gesloten. Je kunt je voorspelling niet meer aanpassen.
+          ⚠️ Inzendingen zijn gesloten. Je kunt je voorspelling niet meer
+          aanpassen.
         </div>
       )}
 
       {/* Sectie A: Selectie */}
       <div className="card">
-        <h2 className="section-title">Sectie A — Officiële Selectie (26 spelers)</h2>
+        <h2 className="section-title">
+          Sectie A — Officiële Selectie (26 spelers)
+        </h2>
         <ProgressBar filled={filledSelectie} total={26} />
         <PlayerGrid
           values={selectie}
           onChange={updateSelectie}
           prefix="Speler"
-          disabled={!isOpen}
+          disabled={!canEdit}
         />
       </div>
 
       {/* Sectie B: Basis XI */}
       <div className="card">
-        <h2 className="section-title">Sectie B — Basis XI vs. Japan (11 spelers)</h2>
-        <p className="text-sm text-gray-500 mb-4">Volgorde maakt niet uit — welke 11 spelers staan er in de basis?</p>
+        <h2 className="section-title">
+          Sectie B — Basis XI vs. Japan (11 spelers)
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Volgorde maakt niet uit — welke 11 spelers staan er in de basis?
+        </p>
         <ProgressBar filled={filledBasisXi} total={11} />
         <PlayerGrid
           values={basisXi}
           onChange={updateBasisXi}
           prefix="Speler"
-          disabled={!isOpen}
+          disabled={!canEdit}
         />
       </div>
 
       {/* Sectie C: Incidenten */}
       <div className="card">
         <h2 className="section-title">Sectie C — Incidenten (10 punten elk)</h2>
-        <p className="text-sm text-gray-500 mb-4">Rode en gele kaart mogen leeg gelaten worden.</p>
+        <p className="text-sm text-gray-500 mb-4">
+          Rode en gele kaart mogen leeg gelaten worden.
+        </p>
         <ProgressBar filled={filledIncidenten} total={4} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              🟥 Eerste Rode Kaart <span className="text-gray-400 font-normal">(optioneel)</span>
+              🟥 Eerste Rode Kaart{" "}
+              <span className="text-gray-400 font-normal">(optioneel)</span>
             </label>
             <input
               type="text"
               value={rodeKaart}
               onChange={(e) => setRodeKaart(e.target.value)}
-              disabled={!isOpen}
+              disabled={!canEdit}
               className="input-field"
               placeholder="Spelernaam"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              🟨 Eerste Gele Kaart <span className="text-gray-400 font-normal">(optioneel)</span>
+              🟨 Eerste Gele Kaart{" "}
+              <span className="text-gray-400 font-normal">(optioneel)</span>
             </label>
             <input
               type="text"
               value={geleKaart}
               onChange={(e) => setGeleKaart(e.target.value)}
-              disabled={!isOpen}
+              disabled={!canEdit}
               className="input-field"
               placeholder="Spelernaam"
             />
@@ -230,7 +288,7 @@ export default function PredictieForm({ initialPrediction, isOpen, score }: Prop
               type="text"
               value={geblesseerde}
               onChange={(e) => setGeblesseerde(e.target.value)}
-              disabled={!isOpen}
+              disabled={!canEdit}
               className="input-field"
               placeholder="Spelernaam"
             />
@@ -243,7 +301,7 @@ export default function PredictieForm({ initialPrediction, isOpen, score }: Prop
               type="text"
               value={eersteGoal}
               onChange={(e) => setEersteGoal(e.target.value)}
-              disabled={!isOpen}
+              disabled={!canEdit}
               className="input-field"
               placeholder="Spelernaam"
             />
@@ -251,23 +309,59 @@ export default function PredictieForm({ initialPrediction, isOpen, score }: Prop
         </div>
       </div>
 
-      {/* Save button */}
-      {isOpen && (
+      {/* Save buttons */}
+      {canEdit && (
         <div className="flex flex-col items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-primary text-lg px-12 py-4 w-full sm:w-auto"
-          >
-            {saving ? 'Opslaan...' : 'Voorspelling Opslaan'}
-          </button>
-
-          {saveStatus === 'success' && (
-            <div className="bg-green-50 border border-green-300 text-green-700 px-6 py-3 rounded-lg font-medium">
-              Voorspelling opgeslagen! ✅
+          {!confirmDefinitief ? (
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => handleSave(false)}
+                disabled={saving}
+                className="btn-secondary text-base px-8 py-3 w-full sm:w-auto"
+              >
+                {saving ? "Opslaan..." : "💾 Concept opslaan"}
+              </button>
+              <button
+                onClick={() => setConfirmDefinitief(true)}
+                disabled={saving}
+                className="btn-primary text-base px-8 py-3 w-full sm:w-auto"
+              >
+                📨 Definitief inzenden
+              </button>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-300 rounded-xl p-5 w-full max-w-md text-center">
+              <p className="font-semibold text-amber-900 mb-1">
+                Weet je het zeker?
+              </p>
+              <p className="text-sm text-amber-700 mb-4">
+                Na definitief inzenden kun je je voorspelling{" "}
+                <strong>niet meer aanpassen</strong>.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setConfirmDefinitief(false)}
+                  className="btn-secondary px-6 py-2"
+                >
+                  Annuleren
+                </button>
+                <button
+                  onClick={() => handleSave(true)}
+                  disabled={saving}
+                  className="btn-primary px-6 py-2"
+                >
+                  {saving ? "Inzenden..." : "Ja, inzenden"}
+                </button>
+              </div>
             </div>
           )}
-          {saveStatus === 'error' && (
+
+          {saveStatus === "draft" && (
+            <div className="bg-blue-50 border border-blue-300 text-blue-700 px-6 py-3 rounded-lg font-medium">
+              Concept opgeslagen ✅
+            </div>
+          )}
+          {saveStatus === "error" && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-3 rounded-lg text-sm">
               Fout bij opslaan: {errorMsg}
             </div>
@@ -275,5 +369,5 @@ export default function PredictieForm({ initialPrediction, isOpen, score }: Prop
         </div>
       )}
     </div>
-  )
+  );
 }

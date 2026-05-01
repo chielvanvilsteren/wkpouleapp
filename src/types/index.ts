@@ -14,6 +14,7 @@ export type Prediction = {
   gele_kaart: string
   geblesseerde: string
   eerste_goal: string
+  is_definitief: boolean
   updated_at: string
 }
 
