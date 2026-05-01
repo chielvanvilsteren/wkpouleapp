@@ -1,74 +1,101 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
 
-const RED   = '#AE1C28'
-const WHITE = '#FFFFFF'
-const BLUE  = '#21468B'
+// Wave params (matching CodePen defaults)
+const SEG_W = 30
+const SEG_H = 20
+const SIZE_W = 30
+const SIZE_H = 20
+const H_WAVE = 0.5
+const V_WAVE = 0.3
+const SWING = 0.2
+const SPEED = 0.5
 
-export default function WavingFlag({ width = 360, height = 240 }: { width?: number; height?: number }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+export default function WavingFlag({ width = 400, height = 267 }: { width?: number; height?: number }) {
+  const mountRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const mount = mountRef.current
+    if (!mount) return
+
+    // Scene + camera
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(60, width / height, 1, 1000)
+    camera.position.set(0, 0, 40)
+    camera.lookAt(new THREE.Vector3(0, 0, 0))
+
+    // Renderer — transparent background so hero gradient shows through
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    renderer.setSize(width, height)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setClearColor(0x000000, 0)
+    mount.appendChild(renderer.domElement)
+
+    // Lights
+    const dirLight = new THREE.DirectionalLight('#ffffff', 1.2)
+    dirLight.position.set(10, 30, 60)
+    scene.add(dirLight)
+    scene.add(new THREE.AmbientLight('#aaaaaa'))
+
+    // Flagpole — golden cylinder
+    const poleGeo = new THREE.CylinderGeometry(0.3, 0.3, SIZE_H + 8, 12)
+    const poleMat = new THREE.MeshPhongMaterial({ color: '#c8a060', shininess: 60 })
+    const pole = new THREE.Mesh(poleGeo, poleMat)
+    pole.position.set(-SIZE_W / 2, 0, 0)
+    scene.add(pole)
+
+    // Dutch flag texture — drawn on canvas
+    const texCanvas = document.createElement('canvas')
+    texCanvas.width = 300
+    texCanvas.height = 200
+    const ctx = texCanvas.getContext('2d')!
+    const stripe = 200 / 3
+    ctx.fillStyle = '#AE1C28'; ctx.fillRect(0, 0, 300, stripe)
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, stripe, 300, stripe)
+    ctx.fillStyle = '#21468B'; ctx.fillRect(0, stripe * 2, 300, stripe)
+    const texture = new THREE.CanvasTexture(texCanvas)
+
+    // Flag mesh — PlaneGeometry with many segments for smooth waves
+    const flagGeo = new THREE.PlaneGeometry(SIZE_W, SIZE_H, SEG_W, SEG_H)
+    const flagMat = new THREE.MeshLambertMaterial({ map: texture, side: THREE.DoubleSide })
+    const flag = new THREE.Mesh(flagGeo, flagMat)
+    scene.add(flag)
+
+    const posAttr = flagGeo.attributes.position as THREE.BufferAttribute
 
     let animId: number
-    let t = 0
-
-    // The flag image: draw to an offscreen canvas first
-    const flag = document.createElement('canvas')
-    flag.width = width
-    flag.height = height
-    const fctx = flag.getContext('2d')!
-
-    const stripe = height / 3
-    fctx.fillStyle = RED;   fctx.fillRect(0, 0,           width, stripe)
-    fctx.fillStyle = WHITE; fctx.fillRect(0, stripe,      width, stripe)
-    fctx.fillStyle = BLUE;  fctx.fillRect(0, stripe * 2,  width, stripe)
-
-    function draw() {
-      ctx!.clearRect(0, 0, width, height)
-
-      const cols = width
-      const wavelength = width * 0.7
-      const maxAmp = height * 0.07  // subtle wave
-
-      // Draw column by column with y-offset
-      for (let x = 0; x < cols; x++) {
-        // More amplitude toward the free end (right side)
-        const progress = x / width
-        const amp = progress * progress * maxAmp
-        const yOff = Math.round(amp * Math.sin((x / wavelength) * Math.PI * 2 - t))
-
-        // Draw a 1px column of the flag image shifted vertically
-        ctx!.drawImage(flag, x, 0, 1, height, x, yOff, 1, height)
+    const animate = () => {
+      const time = Date.now() * SPEED / 50
+      for (let y = 0; y <= SEG_H; y++) {
+        for (let x = 0; x <= SEG_W; x++) {
+          const i = x + y * (SEG_W + 1)
+          // x offset from left edge: flag is centered, so shift by half width
+          const xLocal = x - SEG_W / 2 + SEG_W / 2  // x from 0..SEG_W
+          posAttr.setZ(i, Math.sin(H_WAVE * x + V_WAVE * y - time) * SWING * x / 4)
+        }
       }
-
-      // Shadow at flagpole left edge
-      const grad = ctx!.createLinearGradient(0, 0, 16, 0)
-      grad.addColorStop(0, 'rgba(0,0,0,0.35)')
-      grad.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx!.fillStyle = grad
-      ctx!.fillRect(0, 0, 16, height)
-
-      t += 0.04
-      animId = requestAnimationFrame(draw)
+      posAttr.needsUpdate = true
+      flagGeo.computeVertexNormals()
+      renderer.render(scene, camera)
+      animId = requestAnimationFrame(animate)
     }
 
-    draw()
-    return () => cancelAnimationFrame(animId)
+    animate()
+
+    return () => {
+      cancelAnimationFrame(animId)
+      renderer.dispose()
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
+    }
   }, [width, height])
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
-      className="rounded-lg shadow-2xl"
-      style={{ display: 'block' }}
+    <div
+      ref={mountRef}
+      className="rounded-lg overflow-hidden drop-shadow-2xl"
+      style={{ width, height }}
     />
   )
 }

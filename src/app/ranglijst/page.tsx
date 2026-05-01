@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import RanglijstTabs from '@/components/RanglijstTabs'
+import PageHeader from '@/components/PageHeader'
 import type { Profile, Score, WkScore, RanglijstEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -63,16 +64,18 @@ export default async function RanglijstPage() {
   })
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-knvb-500 mb-1">Ranglijst</h1>
-        <p className="text-gray-600">{profiles.length} deelnemers</p>
-      </div>
-      <RanglijstTabs
-        entries={entries}
-        scoresZichtbaar={scoresZichtbaar}
-        wkScoresZichtbaar={wkScoresZichtbaar}
+    <>
+      <PageHeader
+        title="Ranglijst"
+        subtitle={`${profiles.length} deelnemers`}
       />
-    </div>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <RanglijstTabs
+          entries={entries}
+          scoresZichtbaar={scoresZichtbaar}
+          wkScoresZichtbaar={wkScoresZichtbaar}
+        />
+      </div>
+    </>
   )
 }

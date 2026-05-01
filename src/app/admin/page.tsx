@@ -4,6 +4,7 @@ import AdminUitslagForm from '@/components/AdminUitslagForm'
 import AdminToggles from '@/components/AdminToggles'
 import AdminWkIncidentsForm from '@/components/AdminWkIncidentsForm'
 import AdminMatchResults from '@/components/AdminMatchResults'
+import PageHeader from '@/components/PageHeader'
 import type { MasterUitslag, Prediction, Profile, Match, WkIncidentsUitslag } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +14,7 @@ const DEFAULT_UITSLAG: MasterUitslag = {
   selectie: [],
   basis_xi: [],
   inzendingen_open: true,
+  inzendingen_deadline: null,
   scores_zichtbaar: false,
   wk_poule_open: true,
   wk_scores_zichtbaar: false,
@@ -79,18 +81,20 @@ export default async function AdminPage() {
   const aantalIngevuld = deelnemers.filter((d) => d.heeftIngevuld).length
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="mb-8 flex items-center gap-3">
-        <div className="bg-oranje-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wide">Admin</div>
-        <h1 className="text-3xl font-bold text-knvb-500">Dashboard</h1>
-      </div>
-
+    <>
+      <PageHeader
+        title="Admin Dashboard"
+        badge="Admin"
+        subtitle={`${aantalIngevuld} / ${deelnemers.length} deelnemers hebben de pre-pool ingevuld`}
+      />
+      <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="grid gap-8">
         {/* Toggles */}
         <div className="card">
           <h2 className="section-title">Beheer</h2>
           <AdminToggles
             inzendingen_open={effectiveUitslag.inzendingen_open}
+            inzendingen_deadline={effectiveUitslag.inzendingen_deadline}
             scores_zichtbaar={effectiveUitslag.scores_zichtbaar}
             wk_poule_open={effectiveUitslag.wk_poule_open}
             wk_scores_zichtbaar={effectiveUitslag.wk_scores_zichtbaar}
@@ -159,6 +163,7 @@ export default async function AdminPage() {
           <AdminMatchResults matches={matches} />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

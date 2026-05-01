@@ -22,6 +22,7 @@ export type MasterUitslag = {
   selectie: string[]
   basis_xi: string[]
   inzendingen_open: boolean
+  inzendingen_deadline: string | null
   scores_zichtbaar: boolean
   wk_poule_open: boolean
   wk_scores_zichtbaar: boolean

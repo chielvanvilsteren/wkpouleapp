@@ -1,0 +1,354 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "CodePen Home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+        - generic [ref=e8]: CodePen Home
+      - generic [ref=e10]:
+        - heading "flags waves anime three.js" [level=1] [ref=e11]:
+          - generic [ref=e12]: flags waves anime three.js
+        - generic [ref=e13]:
+          - link "okada-web" [ref=e14] [cursor=pointer]:
+            - /url: /okada-web
+          - button "Follow" [ref=e15] [cursor=pointer]:
+            - img
+            - text: Follow
+      - button "Love" [ref=e16] [cursor=pointer]:
+        - img
+        - generic [ref=e17]: Love
+      - generic [ref=e19]:
+        - button "Settings" [ref=e20] [cursor=pointer]:
+          - img
+          - text: Settings
+        - button "Change View" [ref=e22] [cursor=pointer]:
+          - img
+      - link "Sign Up" [ref=e23] [cursor=pointer]:
+        - /url: /accounts/signup/user/free
+      - link "Log In" [ref=e24] [cursor=pointer]:
+        - /url: /login
+  - option "None" [selected]
+  - option "Haml"
+  - option "Markdown"
+  - option "Slim"
+  - option "Pug"
+  - generic [ref=e26]:
+    - generic [ref=e27]:
+      - generic "Double-click to expand." [ref=e28]:
+        - heading "HTML" [level=2]:
+          - img
+          - generic: HTML
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - generic [ref=e31]:
+            - heading [level=2] [ref=e32]
+            - generic:
+              - text: 0 unsaved changes
+              - generic:
+                - img
+          - generic [ref=e33]:
+            - button "Open HTML Settings" [ref=e34] [cursor=pointer]:
+              - img
+            - button "HTML Options" [ref=e35] [cursor=pointer]:
+              - generic [ref=e36]: HTML Options
+              - img
+        - generic [ref=e38]:
+          - textbox "HTML Code Editor" [active] [ref=e39]
+          - generic [ref=e44]:
+            - generic [ref=e45]:
+              - generic [ref=e46]: "1"
+              - generic [ref=e48] [cursor=pointer]: ▾
+              - text: <html>
+            - generic [ref=e49]:
+              - generic [ref=e50]: "2"
+              - generic [ref=e52] [cursor=pointer]: ▾
+              - text: <head>
+            - generic [ref=e53]:
+              - generic [ref=e54]: "3"
+              - text: <meta charset="UTF-8">
+            - generic [ref=e55]:
+              - generic [ref=e56]: "4"
+              - generic [ref=e58] [cursor=pointer]: ▾
+              - text: <title>
+            - generic [ref=e59]:
+              - generic [ref=e60]: "5"
+              - text: flags waves
+            - generic [ref=e61]:
+              - generic [ref=e62]: "6"
+              - text: </title>
+            - generic [ref=e63]:
+              - generic [ref=e64]: "7"
+              - text: <link rel="stylesheet" type="text/css" href="style.css">
+            - generic [ref=e65]:
+              - generic [ref=e66]: "8"
+              - text: <script src="flag.js"></script>
+            - generic [ref=e67]:
+              - generic [ref=e68]: "9"
+              - text: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+            - generic [ref=e69]:
+              - generic [ref=e70]: "10"
+              - text: </head>
+            - generic [ref=e71]:
+              - generic [ref=e72]: "11"
+              - generic [ref=e74] [cursor=pointer]: ▾
+              - text: <body onload="init()">
+            - generic [ref=e75]:
+              - generic [ref=e76]: "12"
+              - generic [ref=e78] [cursor=pointer]: ▾
+              - text: <h1>flags waves</h1>
+            - generic [ref=e79]:
+              - generic [ref=e80]: "13"
+              - generic [ref=e82] [cursor=pointer]: ▾
+              - text: <main>
+            - generic [ref=e83]:
+              - generic [ref=e84]: "14"
+              - generic [ref=e86] [cursor=pointer]: ▾
+              - text: <div id="left">
+            - generic [ref=e87]:
+              - generic [ref=e88]: "15"
+              - generic [ref=e90] [cursor=pointer]: ▾
+              - text: <div class="meter">
+            - generic [ref=e91]:
+              - generic [ref=e92]: "16"
+              - generic [ref=e94] [cursor=pointer]: ▾
+              - text: <p>color</p>
+            - generic [ref=e95]:
+              - generic [ref=e96]: "17"
+              - text: <input type="color" id="color" value="#ffffff" onclick="setColor()">
+            - generic [ref=e97]:
+              - generic [ref=e98]: "18"
+              - text: </div>
+            - generic [ref=e99]:
+              - generic [ref=e100]: "19"
+              - generic [ref=e102] [cursor=pointer]: ▾
+              - text: <div class="meter">
+            - generic [ref=e103]:
+              - generic [ref=e104]: "20"
+              - generic [ref=e106] [cursor=pointer]: ▾
+              - text: <p>image</p>
+            - generic [ref=e107]:
+              - generic [ref=e108]: "21"
+              - text: <input type="file" id="texture" accept="image/png,image/jpeg,image/gif" onchange="loadTexture(this.files)">
+      - generic "Double-click to expand." [ref=e113]:
+        - heading "CSS" [level=2]:
+          - img
+          - generic: CSS
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - heading [level=2] [ref=e117]
+          - generic [ref=e118]:
+            - button "Open CSS Settings" [ref=e119] [cursor=pointer]:
+              - img
+            - button "CSS Options" [ref=e120] [cursor=pointer]:
+              - generic [ref=e121]: CSS Options
+              - img
+        - generic [ref=e123]:
+          - textbox "CSS Code Editor" [ref=e124]
+          - generic [ref=e129]:
+            - generic [ref=e130]:
+              - generic [ref=e131]: "1"
+              - generic [ref=e133] [cursor=pointer]: ▾
+              - text: "main {"
+            - generic [ref=e134]:
+              - generic [ref=e135]: "2"
+              - text: "display: flex;"
+            - generic [ref=e136]:
+              - generic [ref=e137]: "3"
+              - text: "}"
+            - generic [ref=e138]:
+              - generic [ref=e139]: "4"
+              - generic [ref=e141] [cursor=pointer]: ▾
+              - text: ".meter {"
+            - generic [ref=e142]:
+              - generic [ref=e143]: "5"
+              - text: "display: flex;"
+            - generic [ref=e144]:
+              - generic [ref=e145]: "6"
+              - text: "width: 80%;"
+            - generic [ref=e146]:
+              - generic [ref=e147]: "7"
+              - text: margin:15px auto;
+            - generic [ref=e148]:
+              - generic [ref=e149]: "8"
+              - text: "}"
+            - generic [ref=e150]:
+              - generic [ref=e151]: "9"
+              - generic [ref=e153] [cursor=pointer]: ▾
+              - text: ".meter p{"
+            - generic [ref=e154]:
+              - generic [ref=e155]: "10"
+              - text: "width: 120px;"
+            - generic [ref=e156]:
+              - generic [ref=e157]: "11"
+              - text: "margin: 0;"
+            - generic [ref=e158]:
+              - generic [ref=e159]: "12"
+              - text: "}"
+            - generic [ref=e160]:
+              - generic [ref=e161]: "13"
+              - generic [ref=e163] [cursor=pointer]: ▾
+              - text: ".meter span{"
+            - generic [ref=e164]:
+              - generic [ref=e165]: "14"
+              - text: "width: 40px;"
+            - generic [ref=e166]:
+              - generic [ref=e167]: "15"
+              - text: "margin: 0 15px;"
+            - generic [ref=e168]:
+              - generic [ref=e169]: "16"
+              - text: "line-height: 12px;"
+            - generic [ref=e170]:
+              - generic [ref=e171]: "17"
+              - text: "}"
+            - generic [ref=e172]:
+              - generic [ref=e173]: "18"
+              - generic [ref=e175] [cursor=pointer]: ▾
+              - text: "#left {"
+            - generic [ref=e176]:
+              - generic [ref=e177]: "19"
+              - text: "width: 50%;"
+            - generic [ref=e178]:
+              - generic [ref=e179]: "20"
+              - text: "}"
+            - generic [ref=e180]:
+              - generic [ref=e181]: "21"
+              - generic [ref=e183] [cursor=pointer]: ▾
+              - text: "#right {"
+            - generic [ref=e184]:
+              - generic [ref=e185]: "22"
+              - text: "width: 50%;"
+            - generic [ref=e186]:
+              - generic [ref=e187]: "23"
+              - text: text-align:center;
+            - generic [ref=e188]:
+              - generic [ref=e189]: "24"
+              - text: "}"
+      - generic "Double-click to expand." [ref=e194]:
+        - heading "JS" [level=2]:
+          - img
+          - generic: JS
+      - generic [ref=e195]:
+        - generic [ref=e196]:
+          - heading [level=2] [ref=e198]
+          - generic [ref=e199]:
+            - button "Open JS Settings" [ref=e200] [cursor=pointer]:
+              - img
+            - button "JS Options" [ref=e201] [cursor=pointer]:
+              - generic [ref=e202]: JS Options
+              - img
+        - generic [ref=e204]:
+          - textbox "JavaScript Code Editor" [ref=e205]
+          - generic [ref=e210]:
+            - generic [ref=e211]:
+              - generic [ref=e212]: "1"
+              - text: let scene,camera,renderer;
+            - generic [ref=e213]:
+              - generic [ref=e214]: "2"
+              - text: const [width,height]=[600,400];
+            - generic [ref=e215]:
+              - generic [ref=e216]: "3"
+              - text: let flag;
+            - generic [ref=e217]:
+              - generic [ref=e218]: "4"
+              - text: let flagColor = "#ffffff";
+            - generic [ref=e219]:
+              - generic [ref=e220]: "5"
+              - text: let flagTexture = null;
+            - generic [ref=e221]:
+              - generic [ref=e222]: "6"
+              - text: const [sizeW,sizeH,segW,segH] = [30,20,30,20];
+            - generic [ref=e224]: "7"
+            - generic [ref=e225]:
+              - generic [ref=e226]: "8"
+              - generic [ref=e228] [cursor=pointer]: ▾
+              - text: "const init = () => {"
+            - generic [ref=e229]:
+              - generic [ref=e230]: "9"
+              - text: scene = new THREE.Scene();
+            - generic [ref=e231]:
+              - generic [ref=e232]: "10"
+              - text: camera = new THREE.PerspectiveCamera(60,width/height,1,1000);
+            - generic [ref=e233]:
+              - generic [ref=e234]: "11"
+              - text: camera.position.set(0,0,40);
+            - generic [ref=e235]:
+              - generic [ref=e236]: "12"
+              - text: camera.lookAt(new THREE.Vector3(0,0.0));
+            - generic [ref=e237]:
+              - generic [ref=e238]: "13"
+              - text: "renderer = new THREE.WebGLRenderer({antialias:true});"
+            - generic [ref=e239]:
+              - generic [ref=e240]: "14"
+              - text: renderer.setSize(width,height);
+            - generic [ref=e241]:
+              - generic [ref=e242]: "15"
+              - text: document.getElementById("renderArea").appendChild(renderer.domElement);
+            - generic [ref=e243]:
+              - generic [ref=e244]: "16"
+              - text: const light = new THREE.DirectionalLight("#FFFFFF");
+            - generic [ref=e245]:
+              - generic [ref=e246]: "17"
+              - text: light.position.set(10,50,100);
+            - generic [ref=e247]:
+              - generic [ref=e248]: "18"
+              - text: scene.add(light);
+            - generic [ref=e249]:
+              - generic [ref=e250]: "19"
+              - text: const ambientLight = new THREE.AmbientLight("#999999");
+            - generic [ref=e251]:
+              - generic [ref=e252]: "20"
+              - text: scene.add(ambientLight);
+            - generic [ref=e253]:
+              - generic [ref=e254]: "21"
+              - text: let geometry = new THREE.CylinderGeometry(0.5,0.5,40,16,1);
+            - generic [ref=e255]:
+              - generic [ref=e256]: "22"
+              - generic [ref=e258] [cursor=pointer]: ▾
+              - text: "let material = new THREE.MeshPhongMaterial({"
+    - generic [ref=e265]:
+      - iframe [ref=e267]:
+        - generic [active] [ref=f1e1]:
+          - heading "flags waves" [level=1] [ref=f1e2]
+          - main [ref=f1e3]:
+            - generic [ref=f1e4]:
+              - generic [ref=f1e5]:
+                - paragraph [ref=f1e6]: color
+                - textbox [ref=f1e7]: "#ffffff"
+              - generic [ref=f1e8]:
+                - paragraph [ref=f1e9]: image
+                - button "Choose File" [ref=f1e10]
+              - generic [ref=f1e11]:
+                - paragraph [ref=f1e12]: camera
+                - slider [ref=f1e13]: "0"
+                - generic [ref=f1e14]: "[0°]"
+              - generic [ref=f1e15]:
+                - paragraph [ref=f1e16]: horizontal
+                - slider [ref=f1e17]: "0.5"
+              - generic [ref=f1e18]:
+                - paragraph [ref=f1e19]: vertical
+                - slider [ref=f1e20]: "0.3"
+              - generic [ref=f1e21]:
+                - paragraph [ref=f1e22]: swing
+                - slider [ref=f1e23]: "0.2"
+              - generic [ref=f1e24]:
+                - paragraph [ref=f1e25]: speed
+                - slider [ref=f1e26]: "0.5"
+              - button "UNDO" [ref=f1e28]
+      - text: ">"
+  - contentinfo [ref=e268]:
+    - generic [ref=e269]:
+      - img [ref=e271]
+      - button "Fork" [ref=e272] [cursor=pointer]:
+        - img
+        - text: Fork
+      - button "Embed" [ref=e273] [cursor=pointer]
+      - button "Export" [ref=e275] [cursor=pointer]
+      - button "Share" [ref=e277] [cursor=pointer]
+    - generic [ref=e278]:
+      - button "Console" [ref=e279] [cursor=pointer]
+      - button "Assets" [ref=e280] [cursor=pointer]
+      - button "Comments" [ref=e281] [cursor=pointer]
+      - button "⌘ Keys" [ref=e282] [cursor=pointer]:
+        - generic [ref=e283]: ⌘
+        - text: Keys
+  - text: ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘ ⌘

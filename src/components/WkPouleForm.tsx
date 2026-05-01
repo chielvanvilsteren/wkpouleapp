@@ -9,6 +9,7 @@ type Props = {
   initialPredictions: MatchPrediction[]
   initialIncidents: WkIncidentsPrediction | null
   isOpen: boolean
+  now: string  // ISO from server — avoids client clock drift
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -43,7 +44,7 @@ function ScoreInput({
   )
 }
 
-export default function WkPouleForm({ matches, initialPredictions, initialIncidents, isOpen }: Props) {
+export default function WkPouleForm({ matches, initialPredictions, initialIncidents, isOpen, now }: Props) {
   // Build prediction map: match_id → {home, away}
   const initMap = new Map(initialPredictions.map((p) => [p.match_id, { home: p.home_score, away: p.away_score }]))
   const [scores, setScores] = useState<Map<number, { home: number; away: number }>>(
@@ -157,6 +158,9 @@ export default function WkPouleForm({ matches, initialPredictions, initialIncide
   }
 
   const canEdit = isOpen && !incidentsDefinitief
+  // A match locks 5 minutes before kick-off
+  const nowMs = new Date(now).getTime()
+  const matchIsOpen = (match: Match) => isOpen && (new Date(match.match_date).getTime() - 5 * 60 * 1000) > nowMs
   const filledMatches = Array.from(scores.values()).filter((s) => s.home !== 0 || s.away !== 0).length
 
   return (
@@ -209,11 +213,14 @@ export default function WkPouleForm({ matches, initialPredictions, initialIncide
                     </span>
                     <span className="flex-1 text-sm font-medium text-right text-gray-800 truncate">{match.home_team}</span>
                     <div className="flex items-center gap-1 shrink-0">
-                      <ScoreInput value={s.home} onChange={(v) => setScore(match.id, 'home', v)} disabled={!canEdit} />
+                      <ScoreInput value={s.home} onChange={(v) => setScore(match.id, 'home', v)} disabled={!matchIsOpen(match)} />
                       <span className="text-gray-400 font-bold">—</span>
-                      <ScoreInput value={s.away} onChange={(v) => setScore(match.id, 'away', v)} disabled={!canEdit} />
+                      <ScoreInput value={s.away} onChange={(v) => setScore(match.id, 'away', v)} disabled={!matchIsOpen(match)} />
                     </div>
                     <span className="flex-1 text-sm font-medium text-left text-gray-800 truncate">{match.away_team}</span>
+                    {!matchIsOpen(match) && isOpen && (
+                      <span className="text-xs text-gray-400 shrink-0">🔒</span>
+                    )}
                   </div>
                 )
               })}

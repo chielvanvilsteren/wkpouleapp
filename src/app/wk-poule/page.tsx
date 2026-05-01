@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import WkPouleForm from '@/components/WkPouleForm'
+import PageHeader from '@/components/PageHeader'
 import type { Match, MatchPrediction, WkIncidentsPrediction } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -38,26 +39,26 @@ export default async function WkPoulePage() {
   const incidents = incidentsRaw as WkIncidentsPrediction | null
   const isOpen = (uitslagRaw as { wk_poule_open: boolean } | null)?.wk_poule_open ?? true
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-knvb-500 mb-1">WK Poule</h1>
-        <p className="text-gray-600">
-          Voorspel de uitslag van alle {matches.length} WK-wedstrijden.{' '}
-          {isOpen ? (
-            <span className="text-green-600 font-medium">Inzendingen zijn open. ✅</span>
-          ) : (
-            <span className="text-amber-600 font-medium">Inzendingen zijn gesloten. ⚠️</span>
-          )}
-        </p>
-      </div>
+  const statusNode = isOpen
+    ? <span className="text-green-300 font-medium">Inzendingen open ✅</span>
+    : <span className="text-amber-300 font-medium">Inzendingen gesloten ⚠️</span>
 
-      <WkPouleForm
-        matches={matches}
-        initialPredictions={predictions}
-        initialIncidents={incidents}
-        isOpen={isOpen}
+  return (
+    <>
+      <PageHeader
+        title="WK Poule"
+        badge="WK Poule"
+        subtitle={<>{matches.length} wedstrijden · 3pt exact · 1pt resultaat · incidenten &amp; topscorer &middot; {statusNode}</>}
       />
-    </div>
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <WkPouleForm
+          matches={matches}
+          initialPredictions={predictions}
+          initialIncidents={incidents}
+          isOpen={isOpen}
+          now={new Date().toISOString()}
+        />
+      </div>
+    </>
   )
 }

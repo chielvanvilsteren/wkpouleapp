@@ -1,0 +1,7 @@
+[    1056ms] [WARNING] Origin trial controlled feature not enabled: 'language-model'. @ https://cdpn.io/okada-web/fullpage/OJydGzy:354
+[    1056ms] [WARNING] Origin trial controlled feature not enabled: 'rewriter'. @ https://cdpn.io/okada-web/fullpage/OJydGzy:354
+[    1056ms] [WARNING] Origin trial controlled feature not enabled: 'writer'. @ https://cdpn.io/okada-web/fullpage/OJydGzy:354
+[    1096ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[    1275ms] [ERROR] Refused to apply style from 'https://cdpn.io/okada-web/fullpage/style.css' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled. @ about:srcdoc:115
+[    1275ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://cdpn.io/okada-web/fullpage/flag.js:0
+[    1276ms] [ERROR] Refused to execute script from 'https://cdpn.io/okada-web/fullpage/flag.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled. @ about:srcdoc:0
