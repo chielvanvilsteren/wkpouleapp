@@ -4,8 +4,11 @@ import AdminUitslagForm from '@/components/AdminUitslagForm'
 import AdminToggles from '@/components/AdminToggles'
 import AdminWkIncidentsForm from '@/components/AdminWkIncidentsForm'
 import AdminMatchResults from '@/components/AdminMatchResults'
+import AdminSyncLogs from '@/components/AdminSyncLogs'
+import AdminTabsLayout from '@/components/AdminTabsLayout'
 import PageHeader from '@/components/PageHeader'
 import type { MasterUitslag, Prediction, Profile, Match, WkIncidentsUitslag } from '@/types'
+import type { SyncLog } from '@/components/AdminSyncLogs'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,12 +51,14 @@ export default async function AdminPage() {
     { data: profilesRaw },
     { data: matchesRaw },
     { data: wkUitslagRaw },
+    { data: syncLogsRaw },
   ] = await Promise.all([
     supabase.from('master_uitslag').select('*').eq('id', 1).single(),
     supabase.from('predictions').select('user_id, updated_at'),
     supabase.from('profiles').select('id, display_name, is_deelnemer'),
     supabase.from('matches').select('*').order('match_number', { ascending: true }),
     supabase.from('wk_incidents_uitslag').select('*').eq('id', 1).single(),
+    supabase.from('sync_logs').select('*').order('ran_at', { ascending: false }).limit(50),
   ])
 
   const uitslag = uitslagRaw as MasterUitslag | null
@@ -61,6 +66,7 @@ export default async function AdminPage() {
   const profiles = (profilesRaw ?? []) as (Pick<Profile, 'id' | 'display_name'> & { is_deelnemer: boolean })[]
   const matches = (matchesRaw ?? []) as Match[]
   const wkUitslag = wkUitslagRaw as WkIncidentsUitslag | null
+  const syncLogs = (syncLogsRaw ?? []) as SyncLog[]
 
   const effectiveUitslag: MasterUitslag = uitslag ?? DEFAULT_UITSLAG
   const effectiveWkUitslag: WkIncidentsUitslag = wkUitslag ?? DEFAULT_WK_UITSLAG
@@ -81,6 +87,8 @@ export default async function AdminPage() {
 
   const aantalIngevuld = deelnemers.filter((d) => d.heeftIngevuld).length
 
+  const errorLogs = syncLogs.filter((l) => l.status === 'error').length
+
   return (
     <>
       <PageHeader
@@ -89,82 +97,99 @@ export default async function AdminPage() {
         subtitle={`${aantalIngevuld} / ${deelnemers.length} deelnemers hebben de pre-pool ingevuld`}
       />
       <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="grid gap-8">
-        {/* Toggles */}
-        <div className="card">
-          <h2 className="section-title">Beheer</h2>
-          <AdminToggles
-            inzendingen_open={effectiveUitslag.inzendingen_open}
-            inzendingen_deadline={effectiveUitslag.inzendingen_deadline}
-            scores_zichtbaar={effectiveUitslag.scores_zichtbaar}
-            wk_poule_open={effectiveUitslag.wk_poule_open}
-            wk_poule_deadline={effectiveUitslag.wk_poule_deadline}
-            wk_scores_zichtbaar={effectiveUitslag.wk_scores_zichtbaar}
-          />
-        </div>
-
-        {/* Deelnemers */}
-        <div className="card">
-          <h2 className="section-title">
-            Deelnemers Pre-pool — {aantalIngevuld} / {deelnemers.length} ingevuld
-          </h2>
-          {deelnemers.length === 0 ? (
-            <p className="text-gray-500 text-sm">Nog geen deelnemers.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-3 text-gray-600 font-medium">Naam</th>
-                    <th className="text-center py-2 px-3 text-gray-600 font-medium">Status</th>
-                    <th className="text-right py-2 px-3 text-gray-600 font-medium">Ingevuld op</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deelnemers.map((d) => (
-                    <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-2 px-3 font-medium text-gray-900">{d.display_name}</td>
-                      <td className="py-2 px-3 text-center">
-                        {d.heeftIngevuld ? (
-                          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">✓ Ingevuld</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full">Niet ingevuld</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 text-right text-gray-500">
-                        {d.ingevuldOp ? new Date(d.ingevuldOp).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <AdminTabsLayout
+          tabs={[
+            { key: 'beheer', label: 'Beheer' },
+            { key: 'berichten', label: 'Berichten', badge: errorLogs },
+          ]}
+        >
+          {/* Tab: Beheer */}
+          <div className="grid gap-8">
+            {/* Toggles */}
+            <div className="card">
+              <h2 className="section-title">Beheer</h2>
+              <AdminToggles
+                inzendingen_open={effectiveUitslag.inzendingen_open}
+                inzendingen_deadline={effectiveUitslag.inzendingen_deadline}
+                scores_zichtbaar={effectiveUitslag.scores_zichtbaar}
+                wk_poule_open={effectiveUitslag.wk_poule_open}
+                wk_poule_deadline={effectiveUitslag.wk_poule_deadline}
+                wk_scores_zichtbaar={effectiveUitslag.wk_scores_zichtbaar}
+              />
             </div>
-          )}
-        </div>
 
-        {/* Pre-pool uitslag */}
-        <div className="card">
-          <h2 className="section-title">Pre-pool Uitslag Invullen</h2>
-          <p className="text-sm text-gray-600 mb-6">Officiële selectie + basis XI. Scores worden direct herberekend.</p>
-          <AdminUitslagForm uitslag={effectiveUitslag} />
-        </div>
+            {/* Deelnemers */}
+            <div className="card">
+              <h2 className="section-title">
+                Deelnemers Pre-pool — {aantalIngevuld} / {deelnemers.length} ingevuld
+              </h2>
+              {deelnemers.length === 0 ? (
+                <p className="text-gray-500 text-sm">Nog geen deelnemers.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Naam</th>
+                        <th className="text-center py-2 px-3 text-gray-600 font-medium">Status</th>
+                        <th className="text-right py-2 px-3 text-gray-600 font-medium">Ingevuld op</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deelnemers.map((d) => (
+                        <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-3 font-medium text-gray-900">{d.display_name}</td>
+                          <td className="py-2 px-3 text-center">
+                            {d.heeftIngevuld ? (
+                              <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">✓ Ingevuld</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full">Niet ingevuld</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-right text-gray-500">
+                            {d.ingevuldOp ? new Date(d.ingevuldOp).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
-        {/* WK incidents uitslag */}
-        <div className="card">
-          <h2 className="section-title">WK Poule — NL Incidenten & Topscorer</h2>
-          <p className="text-sm text-gray-600 mb-6">Vul de werkelijke antwoorden in. WK scores worden direct herberekend.</p>
-          <AdminWkIncidentsForm uitslag={effectiveWkUitslag} />
-        </div>
+            {/* Pre-pool uitslag */}
+            <div className="card">
+              <h2 className="section-title">Pre-pool Uitslag Invullen</h2>
+              <p className="text-sm text-gray-600 mb-6">Officiële selectie + basis XI. Scores worden direct herberekend.</p>
+              <AdminUitslagForm uitslag={effectiveUitslag} />
+            </div>
 
-        {/* Match results */}
-        <div className="card">
-          <h2 className="section-title">WK Poule — Wedstrijduitslagen</h2>
-          <p className="text-sm text-gray-600 mb-6">
-            Vul de uitslag in en markeer wedstrijden als afgerond. Klik daarna op opslaan.
-          </p>
-          <AdminMatchResults matches={matches} />
-        </div>
-      </div>
+            {/* WK incidents uitslag */}
+            <div className="card">
+              <h2 className="section-title">WK Poule — NL Incidenten & Topscorer</h2>
+              <p className="text-sm text-gray-600 mb-6">Vul de werkelijke antwoorden in. WK scores worden direct herberekend.</p>
+              <AdminWkIncidentsForm uitslag={effectiveWkUitslag} />
+            </div>
+
+            {/* Match results */}
+            <div className="card">
+              <h2 className="section-title">WK Poule — Wedstrijduitslagen</h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Vul de uitslag in en markeer wedstrijden als afgerond. Klik daarna op opslaan.
+              </p>
+              <AdminMatchResults matches={matches} />
+            </div>
+          </div>
+
+          {/* Tab: Berichten */}
+          <div className="card">
+            <h2 className="section-title">Synchronisatie berichten</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Overzicht van alle uitslag-syncs. De cronjob draait dagelijks om 10:00 (CEST). Tijdens het WK elke 30 minuten.
+            </p>
+            <AdminSyncLogs logs={syncLogs} />
+          </div>
+        </AdminTabsLayout>
       </div>
     </>
   )

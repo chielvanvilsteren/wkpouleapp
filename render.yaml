@@ -16,3 +16,29 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: FOOTBALL_DATA_API_KEY
+        sync: false
+      - key: SYNC_SECRET_TOKEN
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://wkpouleapp.onrender.com
+
+crons:
+  - name: sync-match-results-daily
+    # Dagelijks om 10:00 CEST (= 08:00 UTC) — alleen actief vóór het WK (< 11 juni)
+    # Na WK-start negeert de route deze aanroep automatisch via ?source=daily
+    schedule: "0 8 * * *"
+    command: >-
+      curl -s -X POST
+      -H "Authorization: Bearer $SYNC_SECRET_TOKEN"
+      "$NEXT_PUBLIC_APP_URL/api/sync-results?source=daily"
+
+  - name: sync-match-results-wk
+    # Elk uur op het half uur (xx:30) — het script checkt zelf of er een
+    # wedstrijd is die 2-4,5 uur geleden is begonnen. Zo niet: stille skip.
+    # Eerste poging: ~2,5u na aftrap. Herpoging: ~3,5u na aftrap.
+    schedule: "30 * * * *"
+    command: >-
+      curl -s -X POST
+      -H "Authorization: Bearer $SYNC_SECRET_TOKEN"
+      $NEXT_PUBLIC_APP_URL/api/sync-results

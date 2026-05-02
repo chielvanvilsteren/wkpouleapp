@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Match } from '@/types'
+import SyncResultsButton from '@/components/SyncResultsButton'
 
 type Props = { matches: Match[] }
 
@@ -129,6 +130,7 @@ export default function AdminMatchResults({ matches }: Props) {
           {status === 'recalculating' && 'WK Scores berekenen...'}
           {(status === 'idle' || status === 'success' || status === 'error') && 'Uitslagen Opslaan & Scores Herberekenen'}
         </button>
+        <SyncResultsButton />
         {status === 'success' && <div className="bg-green-50 border border-green-300 text-green-700 px-4 py-2 rounded-lg text-sm font-medium">✅ Uitslagen opgeslagen en scores herberekend!</div>}
         {status === 'error' && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">❌ Fout: {errorMsg}</div>}
       </div>
