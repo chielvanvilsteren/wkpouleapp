@@ -2,16 +2,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types'
-
-function normalize(s: string | null | undefined): string {
-  return (s ?? '').trim().toLowerCase()
-}
-
-function matchResult(home: number, away: number): 'H' | 'D' | 'A' {
-  if (home > away) return 'H'
-  if (away > home) return 'A'
-  return 'D'
-}
+import { normalize, matchResult } from '@/lib/scoring-utils'
 
 export async function POST() {
   const supabase = await createClient()
@@ -44,7 +35,7 @@ export async function POST() {
 
   // Build match result map
   const matchResultMap = new Map(
-    (finishedMatches ?? []).map((m) => [
+    finishedMatches.map((m) => [
       m.id,
       { home: m.home_score!, away: m.away_score!, result: matchResult(m.home_score!, m.away_score!) },
     ])
@@ -52,7 +43,7 @@ export async function POST() {
 
   // Group predictions by user
   const predsByUser = new Map<string, typeof allPredictions>()
-  for (const p of allPredictions ?? []) {
+  for (const p of allPredictions) {
     const list = predsByUser.get(p.user_id) ?? []
     list.push(p)
     predsByUser.set(p.user_id, list)
@@ -75,7 +66,7 @@ export async function POST() {
   }
 
   // Calculate incidents + topscorer per user
-  const upsertData = (wkIncidents ?? []).map((inc) => {
+  const upsertData = wkIncidents.map((inc) => {
     const matchPts = matchPointsMap.get(inc.user_id) ?? 0
 
     let incidentsPts = 0

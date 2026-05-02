@@ -39,8 +39,7 @@ export default function WavingFlag({ className = "", flagUrl }: Props) {
 
   // Scene — mount once
   useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
+    const mount = mountRef.current!;
 
     let w = mount.clientWidth;
     let h = Math.round(w / ASPECT);
@@ -105,8 +104,7 @@ export default function WavingFlag({ className = "", flagUrl }: Props) {
 
   // Texture swap — runs when flagUrl changes
   useEffect(() => {
-    const mat = materialRef.current;
-    if (!mat) return;
+    const mat = materialRef.current!;
     if (!flagUrl) {
       mat.map = makeDutchTexture();
       mat.needsUpdate = true;
@@ -114,11 +112,10 @@ export default function WavingFlag({ className = "", flagUrl }: Props) {
     }
     const loader = new THREE.TextureLoader();
     loader.load(flagUrl, (tex) => {
-      if (!materialRef.current) return;
       tex.magFilter = THREE.LinearFilter;
       tex.minFilter = THREE.LinearFilter;
-      materialRef.current.map = tex;
-      materialRef.current.needsUpdate = true;
+      materialRef.current!.map = tex;
+      materialRef.current!.needsUpdate = true;
     });
   }, [flagUrl]);
 

@@ -63,12 +63,11 @@ export default function Navbar({ user, profile }: Props) {
             <div className="w-10 shrink-0">
               <WavingFlag className="rounded" />
             </div>
-            <div className="leading-tight font-jetbrains">
+            <div className="flex items-center gap-1.5 font-jetbrains">
               <span className="font-black text-white text-base tracking-tight">
                 WK Pool
               </span>
-              <span className="font-black text-oranje-400 text-base tracking-tight">
-                {" "}
+              <span className="neon-pixel text-base tracking-tight">
                 2026
               </span>
             </div>

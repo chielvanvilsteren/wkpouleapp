@@ -37,4 +37,43 @@
   .section-title {
     @apply text-lg font-bold text-knvb-500 mb-4 pb-2 border-b-2 border-oranje-500;
   }
+
+  .neon-pixel {
+    font-family: var(--font-press-start), monospace;
+    color: #ff6200;
+    text-shadow:
+      0 0 7px #ff6200,
+      0 0 14px #ff6200,
+      0 0 28px #ff6200,
+      0 0 56px #ff8c00,
+      0 0 90px #ff8c00;
+    animation: neon-flicker 3s infinite;
+  }
+
+  @keyframes neon-flicker {
+    0%, 95%, 100% {
+      text-shadow:
+        0 0 7px #ff6200,
+        0 0 14px #ff6200,
+        0 0 28px #ff6200,
+        0 0 56px #ff8c00,
+        0 0 90px #ff8c00;
+    }
+    96% {
+      text-shadow: none;
+      color: #cc4e00;
+    }
+    97.5% {
+      text-shadow:
+        0 0 7px #ff6200,
+        0 0 14px #ff6200,
+        0 0 28px #ff6200,
+        0 0 56px #ff8c00,
+        0 0 90px #ff8c00;
+    }
+    98.5% {
+      text-shadow: none;
+      color: #cc4e00;
+    }
+  }
 }

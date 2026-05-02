@@ -33,7 +33,7 @@ export default async function LandingPage() {
               <h1 className="text-5xl md:text-6xl font-black tracking-tight mb-4 leading-none">
                 WK
                 <br />
-                <span className="text-oranje-400">Pool</span>
+                <span className="neon-pixel">Pool</span>
                 <span className="text-white"> 2026</span>
               </h1>
 

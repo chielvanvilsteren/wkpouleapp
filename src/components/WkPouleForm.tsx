@@ -68,7 +68,7 @@ export default function WkPouleForm({ matches, initialPredictions, initialIncide
   const setScore = (matchId: number, side: 'home' | 'away', val: number) => {
     setScores((prev) => {
       const next = new Map(prev)
-      const cur = next.get(matchId) ?? { home: 0, away: 0 }
+      const cur = next.get(matchId)!
       next.set(matchId, { ...cur, [side]: val })
       return next
     })
@@ -95,8 +95,8 @@ export default function WkPouleForm({ matches, initialPredictions, initialIncide
     const matchPayloads = matches.map((m) => ({
       user_id: user.id,
       match_id: m.id,
-      home_score: scores.get(m.id)?.home ?? 0,
-      away_score: scores.get(m.id)?.away ?? 0,
+      home_score: scores.get(m.id)!.home,
+      away_score: scores.get(m.id)!.away,
     }))
 
     const { error: matchError } = await supabase
@@ -205,7 +205,7 @@ export default function WkPouleForm({ matches, initialPredictions, initialIncide
           {openGroups.has(key) && (
             <div className="divide-y divide-gray-100">
               {groupMatches.map((match) => {
-                const s = scores.get(match.id) ?? { home: 0, away: 0 }
+                const s = scores.get(match.id)!
                 return (
                   <div key={match.id} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
                     <span className="text-xs text-gray-400 w-16 shrink-0">

@@ -2,15 +2,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types'
-
-function normalize(s: string | null | undefined): string {
-  return (s ?? '').trim().toLowerCase()
-}
-
-function countMatches(predictions: string[], master: string[]): number {
-  const masterSet = new Set(master.map(normalize).filter(Boolean))
-  return predictions.filter((p) => masterSet.has(normalize(p))).length
-}
+import { normalize, countMatches } from '@/lib/scoring-utils'
 
 export async function POST() {
   const supabase = await createClient()

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { toDateInput } from '@/lib/scoring-utils'
 
 type Props = {
   inzendingen_open: boolean
@@ -36,13 +37,6 @@ function Toggle({
   )
 }
 
-// Extract local date string (YYYY-MM-DD) from UTC ISO for <input type="date">
-function toDateInput(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
 
 export default function AdminToggles({ inzendingen_open, inzendingen_deadline, scores_zichtbaar, wk_poule_open, wk_poule_deadline, wk_scores_zichtbaar }: Props) {
   const [inzendingenOpen, setInzendingenOpen] = useState(inzendingen_open)

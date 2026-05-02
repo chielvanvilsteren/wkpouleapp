@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Prediction, Score } from '@/types'
+import { toArray } from '@/lib/scoring-utils'
 
 type Props = {
   initialPrediction: Prediction | null
@@ -11,7 +12,7 @@ type Props = {
 }
 
 function ProgressBar({ filled, total }: { filled: number; total: number }) {
-  const pct = total > 0 ? Math.round((filled / total) * 100) : 0
+  const pct = Math.round((filled / total) * 100)
   return (
     <div className="flex items-center gap-3 mb-4">
       <div className="flex-1 bg-gray-200 rounded-full h-2.5">
@@ -33,13 +34,6 @@ function PlayerGrid({ values, onChange, prefix, disabled }: { values: string[]; 
       ))}
     </div>
   )
-}
-
-function toArray(arr: string[] | undefined | null, len: number): string[] {
-  if (!arr || arr.length === 0) return Array(len).fill('')
-  const result = [...arr]
-  while (result.length < len) result.push('')
-  return result.slice(0, len)
 }
 
 export default function PredictieForm({ initialPrediction, isOpen, score }: Props) {

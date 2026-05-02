@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Press_Start_2P } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -12,6 +12,11 @@ const inter = Inter({ subsets: ["latin"] });
 const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains",
+});
+const pressStart2P = Press_Start_2P({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-press-start",
 });
 
 export const metadata: Metadata = {
@@ -45,7 +50,7 @@ export default async function RootLayout({
 
   return (
     <html lang="nl">
-      <body className={`${inter.className} ${jetbrains.variable}`}>
+      <body className={`${inter.className} ${jetbrains.variable} ${pressStart2P.variable}`}>
         {!isDisplay && <Navbar user={user} profile={profile} />}
         <main className={isDisplay ? "" : "min-h-screen"}>{children}</main>
         {!isDisplay && (

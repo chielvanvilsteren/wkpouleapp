@@ -23,7 +23,7 @@ export default function AdminMatchResults({ matches }: Props) {
   const setScore = (id: number, side: 'home' | 'away', val: string) => {
     setResults((prev) => {
       const next = new Map(prev)
-      const cur = next.get(id) ?? { home: null, away: null, finished: false }
+      const cur = next.get(id)!
       next.set(id, { ...cur, [side]: val === '' ? null : parseInt(val) })
       return next
     })
@@ -32,7 +32,7 @@ export default function AdminMatchResults({ matches }: Props) {
   const toggleFinished = (id: number) => {
     setResults((prev) => {
       const next = new Map(prev)
-      const cur = next.get(id) ?? { home: null, away: null, finished: false }
+      const cur = next.get(id)!
       next.set(id, { ...cur, finished: !cur.finished })
       return next
     })
@@ -95,7 +95,7 @@ export default function AdminMatchResults({ matches }: Props) {
             {isOpen && (
               <div className="divide-y divide-gray-100">
                 {stageMatches.map((match) => {
-                  const r = results.get(match.id) ?? { home: null, away: null, finished: false }
+                  const r = results.get(match.id)!
                   return (
                     <div key={match.id} className="flex items-center gap-2 px-4 py-2">
                       <span className="text-xs text-gray-400 w-16 shrink-0">

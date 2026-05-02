@@ -3,16 +3,10 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { MasterUitslag } from '@/types'
+import { toArray } from '@/lib/scoring-utils'
 
 type Props = {
   uitslag: MasterUitslag
-}
-
-function toArray(arr: string[] | undefined | null, len: number): string[] {
-  if (!arr || arr.length === 0) return Array(len).fill('')
-  const result = [...arr]
-  while (result.length < len) result.push('')
-  return result.slice(0, len)
 }
 
 export default function AdminUitslagForm({ uitslag }: Props) {
