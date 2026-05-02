@@ -156,7 +156,6 @@ const TEAM_NAME_MAP: Record<string, string> = {
   'Ivory Coast': 'Ivoorkust',
   "Côte d'Ivoire": 'Ivoorkust',
   'Ghana': 'Ghana',
-  'Senegal': 'Senegal',
   'Algeria': 'Algerije',
   'DR Congo': 'Congo',
   'Congo DR': 'Congo',
