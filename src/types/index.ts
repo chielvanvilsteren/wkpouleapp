@@ -48,6 +48,7 @@ export type Match = {
   home_team: string
   away_team: string
   match_date: string
+  match_time: string | null
   home_score: number | null
   away_score: number | null
   is_finished: boolean
