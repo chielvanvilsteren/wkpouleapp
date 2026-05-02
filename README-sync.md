@@ -27,6 +27,7 @@ Next.js API route (src/app/api/sync-results/route.ts)
 ```
 
 De sync haalt wedstrijden op die **in de afgelopen 3 uur** zijn afgelopen. Dit zorgt dat:
+
 - Een wedstrijd die om 21:00 begint, om ~23:30 in de API beschikbaar is
 - Bij elke run van 30 minuten geen wedstrijd gemist wordt
 
@@ -83,11 +84,13 @@ curl -s -X POST https://jouw-app.onrender.com/api/sync-results \
 ```
 
 Verwachte response als er geen wedstrijden zijn:
+
 ```json
 { "message": "Geen afgeronde wedstrijden gevonden", "log": [] }
 ```
 
 Verwachte response na een update:
+
 ```json
 {
   "updated": 2,
@@ -123,6 +126,7 @@ curl -H "X-Auth-Token: jouw_api_sleutel" \
 De `render.yaml` bevat al een cron-definitie die elke 30 minuten draait.
 
 Stel in Render de environment variables in:
+
 - `FOOTBALL_DATA_API_KEY`
 - `SYNC_SECRET_TOKEN`
 - `NEXT_PUBLIC_APP_URL` (de URL van je web service)
@@ -143,6 +147,7 @@ crontab -e
 ```
 
 Voeg toe:
+
 ```cron
 */30 * * * * curl -s -X POST -H "Authorization: Bearer TOKEN" https://jouw-app.onrender.com/api/sync-results >> /tmp/sync.log 2>&1
 ```
@@ -154,6 +159,7 @@ Voeg toe:
 Football-Data.org gebruikt Engelse teamnamen. De `TEAM_NAME_MAP` in het script/route vertaalt deze naar de Nederlandse namen in de database.
 
 Als een team niet gekoppeld wordt (log: `WARN: Niet gekoppeld: ...`), voeg je de vertaling toe in:
+
 - `scripts/sync-match-results.ts` → `TEAM_NAME_MAP`
 - `src/app/api/sync-results/route.ts` → `TEAM_NAME_MAP`
 
@@ -181,10 +187,10 @@ UPDATE public.matches SET external_api_id = 12345 WHERE match_number = 31;
 
 ## Frequentie & API limieten
 
-| Free tier Football-Data.org | |
-|---|---|
-| Requests per minuut | 10 |
-| Requests per dag | geen limiet |
-| WK-data beschikbaar | ja (competition ID 2000) |
+| Free tier Football-Data.org |                          |
+| --------------------------- | ------------------------ |
+| Requests per minuut         | 10                       |
+| Requests per dag            | geen limiet              |
+| WK-data beschikbaar         | ja (competition ID 2000) |
 
 Bij elke sync-run worden **maximaal 1-2 API requests** gedaan. Met een interval van 30 minuten blijf je ruim onder de limieten.
