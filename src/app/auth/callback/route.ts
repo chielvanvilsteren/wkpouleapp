@@ -3,7 +3,8 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
-  const { searchParams, origin } = req.nextUrl
+  const { searchParams } = req.nextUrl
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
@@ -26,9 +27,9 @@ export async function GET(req: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}/auth/reset-password`)
+      return NextResponse.redirect(`${appUrl}/auth/reset-password`)
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=link_verlopen`)
+  return NextResponse.redirect(`${appUrl}/login?error=link_verlopen`)
 }
