@@ -31,7 +31,10 @@ crons:
     command: >-
       curl -s -X POST
       -H "Authorization: Bearer $SYNC_SECRET_TOKEN"
-      "$NEXT_PUBLIC_APP_URL/api/sync-results?source=daily"
+      "https://wkpouleapp.onrender.com/api/sync-results?source=daily"
+    envVars:
+      - key: SYNC_SECRET_TOKEN
+        sync: false
 
   - name: sync-match-results-wk
     # Elk uur op het half uur (xx:30) — het script checkt zelf of er een
@@ -41,4 +44,7 @@ crons:
     command: >-
       curl -s -X POST
       -H "Authorization: Bearer $SYNC_SECRET_TOKEN"
-      $NEXT_PUBLIC_APP_URL/api/sync-results
+      https://wkpouleapp.onrender.com/api/sync-results
+    envVars:
+      - key: SYNC_SECRET_TOKEN
+        sync: false

@@ -66,7 +66,10 @@ export default async function AdminPage() {
     { data: syncLogsRaw },
   ] = await Promise.all([
     supabase.from("master_uitslag").select("*").eq("id", 1).single(),
-    supabase.from("predictions").select("user_id, updated_at"),
+    supabase
+      .from("predictions")
+      .select("user_id, updated_at")
+      .eq("is_definitief", true),
     supabase.from("profiles").select("id, display_name, is_deelnemer"),
     supabase
       .from("matches")
@@ -77,7 +80,8 @@ export default async function AdminPage() {
       .from("sync_logs")
       .select("*")
       .order("ran_at", { ascending: false })
-      .limit(50),
+      .limit(50)
+      .then((res) => ({ data: res.error ? [] : res.data })), // tabel bestaat mogelijk nog niet
   ]);
 
   const uitslag = uitslagRaw as MasterUitslag | null;
