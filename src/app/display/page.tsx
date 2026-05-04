@@ -177,9 +177,6 @@ export default async function DisplayPage() {
                   <tr className="bg-oranje-500 text-white">
                     <th className="px-4 py-3 text-left w-10">#</th>
                     <th className="px-4 py-3 text-left">Naam</th>
-                    {!preDeadlineVerstreken && (
-                      <th className={thCls}>Ingevuld</th>
-                    )}
                     <th className={thCls + " font-bold"}>Punten</th>
                   </tr>
                 </thead>
@@ -195,11 +192,6 @@ export default async function DisplayPage() {
                       <td className="px-4 py-3 font-semibold text-gray-900">
                         {entry.display_name}
                       </td>
-                      {!preDeadlineVerstreken && (
-                        <td className={tdCls + " text-2xl"}>
-                          {entry.pre_ingevuld ? "✅" : "❌"}
-                        </td>
-                      )}
                       <td className={tdCls}>
                         {scoresZichtbaar ? (
                           <span className="font-bold text-oranje-600 text-xl">
@@ -227,9 +219,6 @@ export default async function DisplayPage() {
                   <tr className="bg-oranje-500 text-white">
                     <th className="px-4 py-3 text-left w-10">#</th>
                     <th className="px-4 py-3 text-left">Naam</th>
-                    {!wkDeadlineVerstreken && (
-                      <th className={thCls}>Ingevuld</th>
-                    )}
                     <th className={thCls + " font-bold"}>Punten</th>
                   </tr>
                 </thead>
@@ -245,11 +234,6 @@ export default async function DisplayPage() {
                       <td className="px-4 py-3 font-semibold text-gray-900">
                         {entry.display_name}
                       </td>
-                      {!wkDeadlineVerstreken && (
-                        <td className={tdCls + " text-2xl"}>
-                          {entry.wk_ingevuld ? "✅" : "❌"}
-                        </td>
-                      )}
                       <td className={tdCls}>
                         {wkScoresZichtbaar ? (
                           <span className="font-bold text-oranje-600 text-xl">
