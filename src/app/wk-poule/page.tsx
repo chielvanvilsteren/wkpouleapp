@@ -28,17 +28,24 @@ export default async function WkPoulePage() {
     { data: predictionsRaw },
     { data: incidentsRaw },
     { data: uitslagRaw },
+    { data: masterUitslagSelectieRaw },
   ] = await Promise.all([
     supabase.from('matches').select('*').order('match_number', { ascending: true }),
     supabase.from('match_predictions').select('*').eq('user_id', user.id),
     supabase.from('wk_incidents_predictions').select('*').eq('user_id', user.id).single(),
     supabase.from('master_uitslag').select('wk_poule_open, wk_poule_deadline').eq('id', 1).single(),
+    supabase.from('master_uitslag').select('selectie').eq('id', 1).single(),
   ])
 
   const matches = (matchesRaw ?? []) as Match[]
   const predictions = (predictionsRaw ?? []) as MatchPrediction[]
   const incidents = incidentsRaw as WkIncidentsPrediction | null
   const uitslag = uitslagRaw as { wk_poule_open: boolean; wk_poule_deadline: string | null } | null
+
+  // Admin-ingevulde selectie als bron voor dropdowns (lege strings weggefilterd)
+  const selectie: string[] = ((masterUitslagSelectieRaw as { selectie: string[] | null } | null)?.selectie ?? [])
+    .filter((s: string) => s.trim() !== '')
+    .sort((a: string, b: string) => a.localeCompare(b, 'nl'))
 
   const now = new Date()
   const deadline = uitslag?.wk_poule_deadline ? new Date(uitslag.wk_poule_deadline) : null
@@ -70,6 +77,7 @@ export default async function WkPoulePage() {
           initialIncidents={incidents}
           isOpen={isOpen}
           now={new Date().toISOString()}
+          selectie={selectie}
         />
       </div>
     </>

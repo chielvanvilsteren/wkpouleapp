@@ -10,6 +10,7 @@ type Props = {
   initialIncidents: WkIncidentsPrediction | null;
   isOpen: boolean;
   now: string; // ISO from server — avoids client clock drift
+  selectie?: string[]; // admin-ingevulde NL selectie, leeg = vrij tekstveld
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -44,12 +45,53 @@ function ScoreInput({
   );
 }
 
+function PlayerSelect({
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  selectie,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+  placeholder: string;
+  selectie: string[];
+}) {
+  if (selectie.length === 0) {
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="input-field"
+        placeholder={placeholder}
+      />
+    );
+  }
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      className="input-field bg-white"
+    >
+      <option value="">— Kies een speler —</option>
+      {selectie.map((name) => (
+        <option key={name} value={name}>{name}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function WkPouleForm({
   matches,
   initialPredictions,
   initialIncidents,
   isOpen,
   now,
+  selectie = [],
 }: Props) {
   // Build prediction map: match_id → {home, away}
   const initMap = new Map(
@@ -330,13 +372,12 @@ export default function WkPouleForm({
               🟥 Eerste Rode Kaart NL{" "}
               <span className="text-gray-400 font-normal">(optioneel)</span>
             </label>
-            <input
-              type="text"
+            <PlayerSelect
               value={rodeKaart}
-              onChange={(e) => setRodeKaart(e.target.value)}
+              onChange={setRodeKaart}
               disabled={!canEdit}
-              className="input-field"
               placeholder="Spelernaam"
+              selectie={selectie}
             />
           </div>
           <div>
@@ -344,39 +385,36 @@ export default function WkPouleForm({
               🟨 Eerste Gele Kaart NL{" "}
               <span className="text-gray-400 font-normal">(optioneel)</span>
             </label>
-            <input
-              type="text"
+            <PlayerSelect
               value={geleKaart}
-              onChange={(e) => setGeleKaart(e.target.value)}
+              onChange={setGeleKaart}
               disabled={!canEdit}
-              className="input-field"
               placeholder="Spelernaam"
+              selectie={selectie}
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               🩹 Eerste Geblesseerde NL
             </label>
-            <input
-              type="text"
+            <PlayerSelect
               value={geblesseerde}
-              onChange={(e) => setGeblesseerde(e.target.value)}
+              onChange={setGeblesseerde}
               disabled={!canEdit}
-              className="input-field"
               placeholder="Spelernaam"
+              selectie={selectie}
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               ⚽ Eerste Doelpunt NL
             </label>
-            <input
-              type="text"
+            <PlayerSelect
               value={eersteGoalNl}
-              onChange={(e) => setEersteGoalNl(e.target.value)}
+              onChange={setEersteGoalNl}
               disabled={!canEdit}
-              className="input-field"
               placeholder="Spelernaam"
+              selectie={selectie}
             />
           </div>
           <div className="sm:col-span-2">
