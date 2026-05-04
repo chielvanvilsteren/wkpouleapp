@@ -66,10 +66,7 @@ export default async function AdminPage() {
     { data: syncLogsRaw },
   ] = await Promise.all([
     supabase.from("master_uitslag").select("*").eq("id", 1).single(),
-    supabase
-      .from("predictions")
-      .select("user_id, updated_at")
-      .eq("is_definitief", true),
+    supabase.from("predictions").select("user_id, updated_at"),
     supabase.from("profiles").select("id, display_name, is_deelnemer"),
     supabase
       .from("matches")

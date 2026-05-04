@@ -69,7 +69,6 @@ export default async function DisplayPage() {
         ? admin
             .from("predictions")
             .select("user_id")
-            .eq("is_definitief", true)
             .in("user_id", userIds)
             .then(({ data }) => {
               for (const r of data ?? []) preIngevuldSet.add(r.user_id);
