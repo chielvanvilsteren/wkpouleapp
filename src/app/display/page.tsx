@@ -38,10 +38,10 @@ export default async function DisplayPage() {
   const now = new Date();
   const preDeadlineVerstreken = uitslag?.inzendingen_deadline
     ? new Date(uitslag.inzendingen_deadline) <= now
-    : true;
+    : false;
   const wkDeadlineVerstreken = uitslag?.wk_poule_deadline
     ? new Date(uitslag.wk_poule_deadline) <= now
-    : true;
+    : false;
 
   const { data: profilesRaw } = await supabase
     .from("profiles")
