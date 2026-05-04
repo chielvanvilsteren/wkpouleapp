@@ -26,8 +26,9 @@ function LoginForm() {
     setResetLoading(true)
     setError(null)
     const supabase = createClient()
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: `${baseUrl}/auth/callback`,
     })
     if (error) { setError(error.message) } else { setResetSent(true) }
     setResetLoading(false)
