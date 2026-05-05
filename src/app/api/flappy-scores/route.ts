@@ -17,7 +17,7 @@ export async function GET() {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!scores || scores.length === 0) return NextResponse.json([])
 
-  const userIds = [...new Set(scores.map((s) => s.user_id))]
+  const userIds = Array.from(new Set(scores.map((s) => s.user_id)))
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name')
