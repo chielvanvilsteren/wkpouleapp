@@ -25,8 +25,10 @@ const groupMatches: Match[] = [
     home_team: 'Netherlands',
     away_team: 'Japan',
     match_date: '2026-06-14T18:00:00Z',
+    match_time: null,
     home_score: null,
     away_score: null,
+    is_live: false,
     is_finished: false,
   },
   {
@@ -37,8 +39,10 @@ const groupMatches: Match[] = [
     home_team: 'Germany',
     away_team: 'Brazil',
     match_date: '2026-06-15T18:00:00Z',
+    match_time: null,
     home_score: null,
     away_score: null,
+    is_live: false,
     is_finished: false,
   },
 ]
@@ -52,8 +56,10 @@ const finalMatch: Match[] = [
     home_team: 'Netherlands',
     away_team: 'Argentina',
     match_date: '2026-07-19T19:00:00Z',
+    match_time: null,
     home_score: null,
     away_score: null,
+    is_live: false,
     is_finished: false,
   },
 ]
@@ -119,7 +125,7 @@ describe('WkPouleForm', () => {
     expect(screen.getByText('Finale')).toBeInTheDocument()
   })
 
-  it('group-A and group-F are open by default', () => {
+  it('group-A is open by default, group-F is closed', () => {
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -130,7 +136,7 @@ describe('WkPouleForm', () => {
       />
     )
     expect(screen.getByText('Netherlands')).toBeInTheDocument()
-    expect(screen.getByText('Germany')).toBeInTheDocument()
+    expect(screen.queryByText('Germany')).not.toBeInTheDocument()
   })
 
   it('clicking group header toggles accordion', () => {

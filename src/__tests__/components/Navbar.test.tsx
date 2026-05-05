@@ -26,6 +26,12 @@ jest.mock('next/link', () => ({
   ),
 }))
 
+beforeEach(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ available: 2 }) } as Response)
+  )
+})
+
 describe('Navbar', () => {
   const userWithProfile = {
     user: { id: 'user-1', email: 'test@test.nl' },

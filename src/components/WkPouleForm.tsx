@@ -135,7 +135,7 @@ export default function WkPouleForm({
   const [errorMsg, setErrorMsg] = useState("");
 
   const [openGroups, setOpenGroups] = useState<Set<string>>(
-    new Set(["group-F", "group-A"]),
+    new Set(["group-A"]),
   );
 
   const setScore = (matchId: number, side: "home" | "away", val: number) => {

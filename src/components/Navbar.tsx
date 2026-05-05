@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { logout } from "@/app/auth/actions";
 import type { Profile } from "@/types";
 import WavingFlag from "./WavingFlag";
@@ -45,6 +45,16 @@ function NavLink({
 export default function Navbar({ user, profile }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [credits, setCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/flappy-credits")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setCredits(d.available); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount — user won't change after hydration
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -103,6 +113,11 @@ export default function Navbar({ user, profile }: Props) {
                   <span className="text-sm text-white/80 font-medium">
                     {profile?.display_name}
                   </span>
+                  {credits !== null && (
+                    <span className="text-xs font-bold text-oranje-300 ml-0.5">
+                      ⚡{credits}
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={handleLogout}
@@ -197,9 +212,14 @@ export default function Navbar({ user, profile }: Props) {
 
             {user ? (
               <div className="pt-3 mt-2 border-t border-white/10 flex items-center justify-between px-3">
-                <span className="text-sm text-white/60">
-                  {profile?.display_name}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-white/60">
+                    {profile?.display_name}
+                  </span>
+                  {credits !== null && (
+                    <span className="text-xs font-bold text-oranje-300">⚡{credits}</span>
+                  )}
+                </div>
                 <button
                   onClick={handleLogout}
                   disabled={loggingOut}

@@ -19,12 +19,12 @@ const STAGE_LABELS: Record<string, string> = {
 
 export default function AdminMatchResults({ matches }: Props) {
   const [results, setResults] = useState<
-    Map<number, { home: number | null; away: number | null; finished: boolean }>
+    Map<number, { home: number | null; away: number | null; live: boolean; finished: boolean }>
   >(
     new Map(
       matches.map((m) => [
         m.id,
-        { home: m.home_score, away: m.away_score, finished: m.is_finished },
+        { home: m.home_score, away: m.away_score, live: m.is_live, finished: m.is_finished },
       ]),
     ),
   );
@@ -44,11 +44,17 @@ export default function AdminMatchResults({ matches }: Props) {
     });
   };
 
-  const toggleFinished = (id: number) => {
+  const cycleStatus = (id: number) => {
     setResults((prev) => {
       const next = new Map(prev);
       const cur = next.get(id)!;
-      next.set(id, { ...cur, finished: !cur.finished });
+      if (!cur.live && !cur.finished) {
+        next.set(id, { ...cur, live: true, finished: false });
+      } else if (cur.live && !cur.finished) {
+        next.set(id, { ...cur, live: false, finished: true });
+      } else {
+        next.set(id, { ...cur, live: false, finished: false });
+      }
       return next;
     });
   };
@@ -74,6 +80,7 @@ export default function AdminMatchResults({ matches }: Props) {
         .update({
           home_score: r.home,
           away_score: r.away,
+          is_live: r.live,
           is_finished: r.finished,
         })
         .eq("id", id);
@@ -175,10 +182,16 @@ export default function AdminMatchResults({ matches }: Props) {
                         {match.away_team}
                       </span>
                       <button
-                        onClick={() => toggleFinished(match.id)}
-                        className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${r.finished ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                        onClick={() => cycleStatus(match.id)}
+                        className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${
+                          r.finished
+                            ? "bg-green-100 text-green-700"
+                            : r.live
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-gray-100 text-gray-500"
+                        }`}
                       >
-                        {r.finished ? "Afgerond" : "Bezig"}
+                        {r.finished ? "Afgerond" : r.live ? "Bezig" : "Nog te spelen"}
                       </button>
                     </div>
                   );

@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
 
       const { error: upErr } = await supabase
         .from('matches')
-        .update({ home_score: homeScore, away_score: awayScore, is_finished: true, external_api_id: apiMatch.id })
+        .update({ home_score: homeScore, away_score: awayScore, is_live: false, is_finished: true, external_api_id: apiMatch.id })
         .eq('id', dbMatch.id)
 
       if (upErr) { warn(`Update mislukt #${dbMatch.match_number}: ${upErr.message}`); continue }

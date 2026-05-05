@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import RotatingFlag from "@/components/RotatingFlag";
 import CountdownTimer from "@/components/CountdownTimer";
+import EasterEggListener from "@/components/EasterEggListener";
 
 export default async function LandingPage() {
   const supabase = await createClient();
@@ -9,17 +10,43 @@ export default async function LandingPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Fetch other participants for the easter egg game opponents
+  let opponents: string[] = []
+  let playerName = user?.email ?? "Jij"
+  if (user) {
+    const [{ data: myProfile }, { data: otherProfiles }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("is_deelnemer", true)
+        .neq("id", user.id),
+    ])
+    if (myProfile?.display_name) playerName = myProfile.display_name
+    opponents = otherProfiles?.map((p) => p.display_name).filter(Boolean) ?? []
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero — full-width dark gradient */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-knvb-700 via-knvb-600 to-knvb-500 text-white">
-        {/* Subtle background pattern */}
-        <div
-          className="absolute inset-0 opacity-5"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}
-        />
+      <section className="easter-egg-hero relative overflow-hidden bg-gradient-to-br from-knvb-700 via-knvb-600 to-knvb-500 text-white">
+        {/* Interactive plus grid — replaces static SVG; handles easter egg clicks */}
+        {user && (
+          <EasterEggListener playerName={playerName} opponents={opponents} />
+        )}
+        {/* Static plus grid for logged-out users */}
+        {!user && (
+          <div
+            className="absolute inset-0 opacity-5 pointer-events-none"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          />
+        )}
 
         <div className="relative max-w-5xl mx-auto px-4 py-16 md:py-24">
           <div className="flex flex-col md:flex-row items-center gap-10 md:gap-12">

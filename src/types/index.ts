@@ -51,6 +51,7 @@ export type Match = {
   match_time: string | null
   home_score: number | null
   away_score: number | null
+  is_live: boolean
   is_finished: boolean
 }
 
