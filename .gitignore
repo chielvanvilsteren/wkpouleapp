@@ -42,3 +42,11 @@ yarn-error.log*
 # OS
 Thumbs.db
 
+# Docs / AI tooling
+*.md
+.mcp.json
+.agents/
+.claude/
+.continue/
+skills-lock.json
+
