@@ -31,8 +31,10 @@ const groupMatches: Match[] = [
     home_team: 'Netherlands',
     away_team: 'Japan',
     match_date: '2026-06-14T18:00:00Z',
+    match_time: null,
     home_score: null,
     away_score: null,
+    is_live: false,
     is_finished: false,
   },
   {
@@ -43,8 +45,10 @@ const groupMatches: Match[] = [
     home_team: 'Germany',
     away_team: 'Brazil',
     match_date: '2026-06-14T21:00:00Z',
+    match_time: null,
     home_score: 2,
     away_score: 1,
+    is_live: false,
     is_finished: true,
   },
 ]
@@ -58,8 +62,10 @@ const finalMatch: Match[] = [
     home_team: 'Netherlands',
     away_team: 'Argentina',
     match_date: '2026-07-19T19:00:00Z',
+    match_time: null,
     home_score: null,
     away_score: null,
+    is_live: false,
     is_finished: false,
   },
 ]
@@ -114,16 +120,18 @@ describe('AdminMatchResults', () => {
     expect(screen.getByText('Netherlands')).toBeInTheDocument()
   })
 
-  it('shows "Afgerond" for finished match and "Bezig" for unfinished', () => {
+  it('shows "Afgerond" for finished match and "Nog te spelen" for unfinished', () => {
     render(<AdminMatchResults matches={groupMatches} />)
     expect(screen.getByText('Afgerond')).toBeInTheDocument()
-    expect(screen.getByText('Bezig')).toBeInTheDocument()
+    expect(screen.getByText('Nog te spelen')).toBeInTheDocument()
   })
 
-  it('toggle finished button changes state', () => {
+  it('toggle cycles Nog te spelen → Bezig → Afgerond', () => {
     render(<AdminMatchResults matches={groupMatches} />)
-    const bezig = screen.getByText('Bezig')
-    fireEvent.click(bezig)
+    const nogTeSpelen = screen.getByText('Nog te spelen')
+    fireEvent.click(nogTeSpelen)
+    expect(screen.getByText('Bezig')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Bezig'))
     expect(screen.getAllByText('Afgerond').length).toBe(2)
   })
 

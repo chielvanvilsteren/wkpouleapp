@@ -6,6 +6,8 @@ import AdminWkIncidentsForm from "@/components/AdminWkIncidentsForm";
 import AdminMatchResults from "@/components/AdminMatchResults";
 import AdminSyncLogs from "@/components/AdminSyncLogs";
 import AdminTabsLayout from "@/components/AdminTabsLayout";
+import AdminFlappyCredits from "@/components/AdminFlappyCredits";
+import AdminRecalcWkScores from "@/components/AdminRecalcWkScores";
 import PageHeader from "@/components/PageHeader";
 import type {
   MasterUitslag,
@@ -129,6 +131,7 @@ export default async function AdminPage() {
         <AdminTabsLayout
           tabs={[
             { key: "beheer", label: "Beheer" },
+            { key: "credits", label: "⚡ Flappy Credits" },
             { key: "berichten", label: "Berichten", badge: errorLogs },
           ]}
         >
@@ -145,6 +148,15 @@ export default async function AdminPage() {
                 wk_poule_deadline={effectiveUitslag.wk_poule_deadline}
                 wk_scores_zichtbaar={effectiveUitslag.wk_scores_zichtbaar}
               />
+            </div>
+
+            {/* Handmatig herberekenen */}
+            <div className="card">
+              <h2 className="section-title">WK Scores Herberekenen</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Herbereken alle WK-poule scores op basis van de huidige wedstrijduitslagen en voorspellingen. Gebruik dit als de ranglijst niet klopt.
+              </p>
+              <AdminRecalcWkScores />
             </div>
 
             {/* Deelnemers */}
@@ -239,6 +251,15 @@ export default async function AdminPage() {
               </p>
               <AdminMatchResults matches={matches} />
             </div>
+          </div>
+
+          {/* Tab: Flappy Credits */}
+          <div className="card">
+            <h2 className="section-title">⚡ Flappy Bal Credits</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Overzicht van alle credits per deelnemer. Je kunt handmatig credits toekennen.
+            </p>
+            <AdminFlappyCredits />
           </div>
 
           {/* Tab: Berichten */}
