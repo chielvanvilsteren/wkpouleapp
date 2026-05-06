@@ -135,7 +135,17 @@ export async function POST(req: NextRequest) {
     })
 
     if (!inWindow) {
-      return NextResponse.json({ skipped: true, message: 'Geen wedstrijd in het synchronisatievenster (2-4,5u na aftrap).' })
+      const skipMsg = 'Geen wedstrijd in het synchronisatievenster (2-4,5u na aftrap).'
+      await supabase.from('sync_logs').insert({
+        status: 'none',
+        message: skipMsg,
+        updated: 0,
+        skipped: 0,
+        unmatched: 0,
+        details: [],
+        triggered_by: triggeredBy,
+      })
+      return NextResponse.json({ skipped: true, message: skipMsg })
     }
   }
 
