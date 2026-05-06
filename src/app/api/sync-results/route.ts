@@ -136,15 +136,19 @@ export async function POST(req: NextRequest) {
 
     if (!inWindow) {
       const skipMsg = 'Geen wedstrijd in het synchronisatievenster (2-4,5u na aftrap).'
-      await supabase.from('sync_logs').insert({
-        status: 'none',
-        message: skipMsg,
-        updated: 0,
-        skipped: 0,
-        unmatched: 0,
-        details: [],
-        triggered_by: triggeredBy,
-      })
+      // Alleen dagelijkse check logt — zo kan admin zien dat de cron draait.
+      // WK-cron (elk half uur) blijft stil om ruis te vermijden.
+      if (isDaily) {
+        await supabase.from('sync_logs').insert({
+          status: 'none',
+          message: skipMsg,
+          updated: 0,
+          skipped: 0,
+          unmatched: 0,
+          details: [],
+          triggered_by: triggeredBy,
+        })
+      }
       return NextResponse.json({ skipped: true, message: skipMsg })
     }
   }
