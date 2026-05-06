@@ -202,70 +202,120 @@ function drawPipe(ctx: CanvasRenderingContext2D, p: Pipe) {
   }
 }
 
+// ─── Pentagon helper ──────────────────────────────────────────
+function tracePentagon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot = 0) {
+  ctx.beginPath()
+  for (let i = 0; i < 5; i++) {
+    const a = (i * Math.PI * 2) / 5 + rot
+    if (i === 0) ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
+    else ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
+  }
+  ctx.closePath()
+}
+
 // ─── Draw ball ────────────────────────────────────────────────
 function drawBall(ctx: CanvasRenderingContext2D, y: number, vy: number, name: string, dead: boolean) {
   const tilt = dead ? 1.2 : Math.max(-0.45, Math.min(0.45, vy * 0.055))
+  const R = BALL_R
 
   // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.22)'
+  ctx.save()
+  ctx.globalAlpha = 0.22
+  ctx.fillStyle = '#000'
   ctx.beginPath()
-  ctx.ellipse(BALL_X + 5, y + BALL_R + 5, BALL_R * 0.85, 5, 0, 0, Math.PI * 2)
+  ctx.ellipse(BALL_X + 7, y + R + 5, R * 0.85, 4.5, 0.1, 0, Math.PI * 2)
   ctx.fill()
+  ctx.restore()
 
   ctx.save()
   ctx.translate(BALL_X, y)
   ctx.rotate(tilt)
 
-  // Ball body
-  const bg = ctx.createRadialGradient(-BALL_R * 0.32, -BALL_R * 0.32, 1.5, 0, 0, BALL_R)
-  bg.addColorStop(0, '#ffffff')
-  bg.addColorStop(0.45, '#f2f2f2')
-  bg.addColorStop(1, '#c0c0c0')
-  ctx.beginPath(); ctx.arc(0, 0, BALL_R, 0, Math.PI * 2)
-  ctx.fillStyle = bg; ctx.fill()
-  ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5; ctx.stroke()
+  // ── Sphere (clipped) ──────────────────────────────────────────
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(0, 0, R, 0, Math.PI * 2)
+  ctx.clip()
 
-  // Football patches
-  ctx.fillStyle = '#1a1a1a'
-  ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, Math.PI * 2); ctx.fill()
-  for (let i = 0; i < 5; i++) {
-    const a = i * Math.PI * 2 / 5 - Math.PI / 2
-    ctx.beginPath()
-    ctx.arc(Math.cos(a) * 10.5, Math.sin(a) * 10.5, 3.5, 0, Math.PI * 2)
-    ctx.fill()
-  }
+  // Base diffuse gradient – light from upper-left, strong contrast like emoji
+  const bg = ctx.createRadialGradient(-R * 0.25, -R * 0.3, R * 0.02, R * 0.08, R * 0.08, R * 1.1)
+  bg.addColorStop(0,    '#ffffff')
+  bg.addColorStop(0.18, '#f4f4f4')
+  bg.addColorStop(0.5,  '#cccccc')
+  bg.addColorStop(0.8,  '#a8a8a8')
+  bg.addColorStop(1,    '#888888')
+  ctx.fillStyle = bg
+  ctx.fillRect(-R, -R, R * 2, R * 2)
 
-  // Face
-  // White of eyes
+  // Pentagon patches – classic Telstar layout (top + 2 upper-side + 2 lower)
+  ctx.fillStyle = '#111'
+  ctx.strokeStyle = '#1a1a1a'
+  ctx.lineWidth = 0.8
+
+  // Top
+  tracePentagon(ctx, 0, -R * 0.55, R * 0.3, -Math.PI / 2)
+  ctx.fill(); ctx.stroke()
+  // Upper-left
+  tracePentagon(ctx, -R * 0.57, -R * 0.2, R * 0.25, -Math.PI * 0.72)
+  ctx.fill(); ctx.stroke()
+  // Upper-right
+  tracePentagon(ctx, R * 0.57, -R * 0.2, R * 0.25, -Math.PI * 0.28)
+  ctx.fill(); ctx.stroke()
+  // Lower-left
+  tracePentagon(ctx, -R * 0.36, R * 0.59, R * 0.22, Math.PI * 0.18)
+  ctx.fill(); ctx.stroke()
+  // Lower-right
+  tracePentagon(ctx, R * 0.36, R * 0.59, R * 0.22, Math.PI * 0.82)
+  ctx.fill(); ctx.stroke()
+
+  // Ambient occlusion at rim
+  const ao = ctx.createRadialGradient(0, 0, R * 0.42, 0, 0, R)
+  ao.addColorStop(0,   'rgba(0,0,0,0)')
+  ao.addColorStop(0.65,'rgba(0,0,0,0.08)')
+  ao.addColorStop(1,   'rgba(0,0,0,0.58)')
+  ctx.fillStyle = ao
+  ctx.fillRect(-R, -R, R * 2, R * 2)
+
+  // Specular highlight – strong, like emoji
+  const spec = ctx.createRadialGradient(-R * 0.32, -R * 0.4, 0, -R * 0.18, -R * 0.26, R * 0.42)
+  spec.addColorStop(0,    'rgba(255,255,255,0.98)')
+  spec.addColorStop(0.2,  'rgba(255,255,255,0.75)')
+  spec.addColorStop(0.5,  'rgba(255,255,255,0.18)')
+  spec.addColorStop(0.75, 'rgba(255,255,255,0.04)')
+  spec.addColorStop(1,    'rgba(255,255,255,0)')
+  ctx.fillStyle = spec
+  ctx.fillRect(-R, -R, R * 2, R * 2)
+
+  ctx.restore() // remove clip
+
+  // Outline
+  ctx.strokeStyle = '#777'
+  ctx.lineWidth = 1.2
+  ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke()
+
+  // ── Face ──────────────────────────────────────────────────────
   ctx.fillStyle = '#fff'
   ctx.beginPath(); ctx.ellipse(-5.5, -3, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill()
   ctx.beginPath(); ctx.ellipse(5.5, -3, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill()
 
   if (dead) {
-    // X eyes
     ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2; ctx.lineCap = 'round'
-    for (const [ex, ey] of [[-5.5, -3], [5.5, -3]] as [number,number][]) {
-      ctx.beginPath(); ctx.moveTo(ex-3, ey-3); ctx.lineTo(ex+3, ey+3); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(ex+3, ey-3); ctx.lineTo(ex-3, ey+3); ctx.stroke()
+    for (const [ex, ey] of [[-5.5, -3], [5.5, -3]] as [number, number][]) {
+      ctx.beginPath(); ctx.moveTo(ex - 3, ey - 3); ctx.lineTo(ex + 3, ey + 3); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(ex + 3, ey - 3); ctx.lineTo(ex - 3, ey + 3); ctx.stroke()
     }
-    // Sad mouth
     ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.8
     ctx.beginPath(); ctx.arc(0, 8, 5, Math.PI + 0.3, -0.3); ctx.stroke()
   } else {
-    // Iris
     ctx.fillStyle = '#1565c0'
     ctx.beginPath(); ctx.ellipse(-5.5, -2.5, 2.5, 3.2, 0, 0, Math.PI * 2); ctx.fill()
     ctx.beginPath(); ctx.ellipse(5.5, -2.5, 2.5, 3.2, 0, 0, Math.PI * 2); ctx.fill()
-    // Pupil
     ctx.fillStyle = '#000'
     ctx.beginPath(); ctx.arc(-5, -2, 1.4, 0, Math.PI * 2); ctx.fill()
     ctx.beginPath(); ctx.arc(6, -2, 1.4, 0, Math.PI * 2); ctx.fill()
-    // Gleam
     ctx.fillStyle = '#fff'
     ctx.beginPath(); ctx.arc(-4, -3.5, 0.9, 0, Math.PI * 2); ctx.fill()
     ctx.beginPath(); ctx.arc(7, -3.5, 0.9, 0, Math.PI * 2); ctx.fill()
-
-    // Expression mouth
     ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.8; ctx.lineCap = 'round'
     if (vy < -3) {
       ctx.beginPath(); ctx.arc(0, 5, 5, 0.25, Math.PI - 0.25); ctx.stroke()
@@ -341,10 +391,12 @@ function drawGetReady(ctx: CanvasRenderingContext2D) {
 export default function FootballGame({
   playerName,
   onClose,
+  onGameStart,
 }: {
   playerName: string
   opponents?: string[]
   onClose: () => void
+  onGameStart?: () => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gsRef = useRef<GS | null>(null)
@@ -528,7 +580,7 @@ export default function FootballGame({
             <div className="flex gap-3">
               <button
                 disabled={credits === null || credits <= 0}
-                onClick={() => setScreen('playing')}
+                onClick={() => { onGameStart?.(); setScreen('playing') }}
                 className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black px-10 py-3.5 rounded-xl text-lg shadow-lg shadow-orange-900/40 transition-colors"
               >
                 {credits === 0 ? '⚡ Geen credits' : 'Spelen! ⚽'}
