@@ -40,6 +40,9 @@ const DEFAULT_WK_UITSLAG: WkIncidentsUitslag = {
   geblesseerde: "",
   eerste_goal_nl: "",
   topscorer_wk: "",
+  wereldkampioen: "",
+  finale_team1: "",
+  finale_team2: "",
   updated_at: new Date().toISOString(),
 };
 

@@ -12,6 +12,7 @@ const entries: RanglijstEntry[] = [
     match_punten: 15,
     incidents_punten: 10,
     topscorer_punten: 20,
+    toernooi_punten: 0,
     wk_totaal: 45,
     totaal: 75,
   },

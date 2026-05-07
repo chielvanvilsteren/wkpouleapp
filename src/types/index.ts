@@ -70,6 +70,9 @@ export type WkIncidentsPrediction = {
   geblesseerde: string
   eerste_goal_nl: string
   topscorer_wk: string
+  wereldkampioen: string
+  finale_team1: string
+  finale_team2: string
   is_definitief: boolean
   updated_at: string
 }
@@ -81,6 +84,9 @@ export type WkIncidentsUitslag = {
   geblesseerde: string
   eerste_goal_nl: string
   topscorer_wk: string
+  wereldkampioen: string
+  finale_team1: string
+  finale_team2: string
   updated_at: string
 }
 
@@ -89,6 +95,7 @@ export type WkScore = {
   match_punten: number
   incidents_punten: number
   topscorer_punten: number
+  toernooi_punten: number
   totaal: number
   updated_at: string
 }
@@ -106,6 +113,7 @@ export type RanglijstEntry = {
   match_punten: number | null
   incidents_punten: number | null
   topscorer_punten: number | null
+  toernooi_punten: number | null
   wk_totaal: number | null
   // combined
   totaal: number | null

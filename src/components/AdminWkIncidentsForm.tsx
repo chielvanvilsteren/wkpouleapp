@@ -12,6 +12,9 @@ export default function AdminWkIncidentsForm({ uitslag }: Props) {
   const [geblesseerde, setGeblesseerde] = useState(uitslag.geblesseerde ?? '')
   const [eersteGoalNl, setEersteGoalNl] = useState(uitslag.eerste_goal_nl ?? '')
   const [topscorerWk, setTopscorerWk] = useState(uitslag.topscorer_wk ?? '')
+  const [wereldkampioen, setWereldkampioen] = useState(uitslag.wereldkampioen ?? '')
+  const [finaleTeam1, setFinaleTeam1] = useState(uitslag.finale_team1 ?? '')
+  const [finaleTeam2, setFinaleTeam2] = useState(uitslag.finale_team2 ?? '')
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<'idle' | 'saving' | 'recalculating' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -31,6 +34,9 @@ export default function AdminWkIncidentsForm({ uitslag }: Props) {
         geblesseerde: geblesseerde.trim(),
         eerste_goal_nl: eersteGoalNl.trim(),
         topscorer_wk: topscorerWk.trim(),
+        wereldkampioen: wereldkampioen.trim(),
+        finale_team1: finaleTeam1.trim(),
+        finale_team2: finaleTeam2.trim(),
         updated_at: new Date().toISOString(),
       })
 
@@ -76,6 +82,18 @@ export default function AdminWkIncidentsForm({ uitslag }: Props) {
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">🏆 Topscorer WK (alle landen)</label>
           <input type="text" value={topscorerWk} onChange={(e) => setTopscorerWk(e.target.value)} className="input-field" placeholder="Spelersnaam + land" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">🌍 Wereldkampioen</label>
+          <input type="text" value={wereldkampioen} onChange={(e) => setWereldkampioen(e.target.value)} className="input-field" placeholder="Land" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">🏟️ Finalist 1</label>
+          <input type="text" value={finaleTeam1} onChange={(e) => setFinaleTeam1(e.target.value)} className="input-field" placeholder="Land" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">🏟️ Finalist 2</label>
+          <input type="text" value={finaleTeam2} onChange={(e) => setFinaleTeam2(e.target.value)} className="input-field" placeholder="Land" />
         </div>
       </div>
 

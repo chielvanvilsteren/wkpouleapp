@@ -27,6 +27,9 @@ const uitslag: WkIncidentsUitslag = {
   geblesseerde: 'Van Dijk',
   eerste_goal_nl: 'Depay',
   topscorer_wk: 'Mbappe',
+  wereldkampioen: '',
+  finale_team1: '',
+  finale_team2: '',
   updated_at: '2026-01-01T00:00:00Z',
 }
 

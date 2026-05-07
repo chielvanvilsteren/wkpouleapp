@@ -74,6 +74,9 @@ const filledIncidents: WkIncidentsPrediction = {
   geblesseerde: 'Van Dijk',
   eerste_goal_nl: 'Depay',
   topscorer_wk: 'Mbappe',
+  wereldkampioen: '',
+  finale_team1: '',
+  finale_team2: '',
   is_definitief: false,
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -135,8 +138,12 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    expect(screen.getByText('Netherlands')).toBeInTheDocument()
-    expect(screen.queryByText('Germany')).not.toBeInTheDocument()
+    // Netherlands is in group-A (open) → visible as match row span
+    const nlSpans = screen.getAllByText('Netherlands').filter(el => el.tagName === 'SPAN')
+    expect(nlSpans.length).toBeGreaterThan(0)
+    // Germany is in group-F (closed) → no match row span visible
+    const deSpans = screen.queryAllByText('Germany').filter(el => el.tagName === 'SPAN')
+    expect(deSpans).toHaveLength(0)
   })
 
   it('clicking group header toggles accordion', () => {
@@ -150,9 +157,13 @@ describe('WkPouleForm', () => {
       />
     )
     fireEvent.click(screen.getByText('Groep A'))
-    expect(screen.queryByText('Netherlands')).not.toBeInTheDocument()
+    // After close, Netherlands span should be gone from match rows
+    const nlSpansClosed = screen.queryAllByText('Netherlands').filter(el => el.tagName === 'SPAN')
+    expect(nlSpansClosed).toHaveLength(0)
     fireEvent.click(screen.getByText('Groep A'))
-    expect(screen.getByText('Netherlands')).toBeInTheDocument()
+    // After reopen, Netherlands span is back
+    const nlSpansOpen = screen.getAllByText('Netherlands').filter(el => el.tagName === 'SPAN')
+    expect(nlSpansOpen.length).toBeGreaterThan(0)
   })
 
   it('shows lock icon when match is locked (nowFuture)', () => {
@@ -409,11 +420,12 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    const inputs = screen.getAllByPlaceholderText('Spelernaam')
-    fireEvent.change(inputs[0], { target: { value: 'Dumfries' } })
-    fireEvent.change(inputs[1], { target: { value: 'De Jong' } })
-    fireEvent.change(inputs[2], { target: { value: 'Van Dijk' } })
-    fireEvent.change(inputs[3], { target: { value: 'Depay' } })
+    // rode_kaart and geblesseerde use "Leeglaten = niemand" placeholder; gele_kaart and eerste_goal_nl use "Spelernaam"
+    const leegInputs = screen.getAllByPlaceholderText('Leeglaten = niemand')
+    const spelernaamInputs = screen.getAllByPlaceholderText('Spelernaam')
+    fireEvent.change(leegInputs[0], { target: { value: 'Dumfries' } })
+    fireEvent.change(spelernaamInputs[0], { target: { value: 'De Jong' } })
+    fireEvent.change(spelernaamInputs[1], { target: { value: 'Depay' } })
     const topscorerInput = screen.getByPlaceholderText('Spelersnaam + land')
     fireEvent.change(topscorerInput, { target: { value: 'Mbappe' } })
     expect(screen.getByDisplayValue('Dumfries')).toBeInTheDocument()

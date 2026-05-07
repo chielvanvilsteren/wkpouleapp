@@ -74,6 +74,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                     <th className="px-4 py-3 text-center">Wedstr.</th>
                     <th className="px-4 py-3 text-center">Incidents</th>
                     <th className="px-4 py-3 text-center">Topscorer</th>
+                    <th className="px-4 py-3 text-center">Toernooi</th>
                     <th className="px-4 py-3 text-center font-bold">Totaal</th>
                   </>
                 )}
@@ -107,6 +108,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                       <td className="px-4 py-3 text-center text-gray-700">{entry.match_punten ?? <span className="text-gray-400">—</span>}</td>
                       <td className="px-4 py-3 text-center text-gray-700">{entry.incidents_punten ?? <span className="text-gray-400">—</span>}</td>
                       <td className="px-4 py-3 text-center text-gray-700">{entry.topscorer_punten ?? <span className="text-gray-400">—</span>}</td>
+                      <td className="px-4 py-3 text-center text-gray-700">{entry.toernooi_punten ?? <span className="text-gray-400">—</span>}</td>
                       <td className="px-4 py-3 text-center"><span className="font-bold text-oranje-600 text-lg">{entry.wk_totaal ?? '—'}</span></td>
                     </>
                   )}

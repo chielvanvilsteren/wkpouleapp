@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Match, MatchPrediction, WkIncidentsPrediction } from "@/types";
 
@@ -85,6 +85,46 @@ function PlayerSelect({
   );
 }
 
+function CountrySelect({
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  countries,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+  placeholder: string;
+  countries: string[];
+}) {
+  if (countries.length === 0) {
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="input-field"
+        placeholder={placeholder}
+      />
+    );
+  }
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      className="input-field bg-white"
+    >
+      <option value="">— Kies een land —</option>
+      {countries.map((name) => (
+        <option key={name} value={name}>{name}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function WkPouleForm({
   matches,
   initialPredictions,
@@ -123,6 +163,20 @@ export default function WkPouleForm({
   const [topscorerWk, setTopscorerWk] = useState(
     initialIncidents?.topscorer_wk ?? "",
   );
+  const [wereldkampioen, setWereldkampioen] = useState(
+    initialIncidents?.wereldkampioen ?? "",
+  );
+  const [finaleTeam1, setFinaleTeam1] = useState(
+    initialIncidents?.finale_team1 ?? "",
+  );
+  const [finaleTeam2, setFinaleTeam2] = useState(
+    initialIncidents?.finale_team2 ?? "",
+  );
+
+  const countries = useMemo(() => {
+    const all = matches.flatMap((m) => [m.home_team, m.away_team]);
+    return Array.from(new Set(all)).sort((a, b) => a.localeCompare(b, "nl"));
+  }, [matches]);
   const [incidentsDefinitief, setIncidentsDefinitief] = useState(
     initialIncidents?.is_definitief ?? false,
   );
@@ -197,6 +251,9 @@ export default function WkPouleForm({
       geblesseerde: geblesseerde.trim(),
       eerste_goal_nl: eersteGoalNl.trim(),
       topscorer_wk: topscorerWk.trim(),
+      wereldkampioen: wereldkampioen.trim(),
+      finale_team1: finaleTeam1.trim(),
+      finale_team2: finaleTeam2.trim(),
       is_definitief: definitief,
       updated_at: new Date().toISOString(),
     };
@@ -365,19 +422,19 @@ export default function WkPouleForm({
       <div className="card">
         <h2 className="section-title">NL Incidenten & Topscorer</h2>
         <p className="text-sm text-gray-500 mb-4">
-          Incidenten: 10 punten per correct antwoord. Topscorer WK: 20 punten.
+          Rode kaart / geblesseerde leeg laten: <strong>10 punten</strong> als er niemand is. Juiste speler: <strong>30 punten</strong>. Overige incidenten: <strong>10 punten</strong>. Topscorer WK: <strong>20 punten</strong>.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               🟥 Eerste Rode Kaart NL{" "}
-              <span className="text-gray-400 font-normal">(optioneel)</span>
+              <span className="text-gray-400 font-normal">(leeg = niemand)</span>
             </label>
             <PlayerSelect
               value={rodeKaart}
               onChange={setRodeKaart}
               disabled={!canEdit}
-              placeholder="Spelernaam"
+              placeholder="Leeglaten = niemand"
               selectie={selectie}
             />
           </div>
@@ -396,13 +453,14 @@ export default function WkPouleForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              🩹 Eerste Geblesseerde NL
+              🩹 Eerste Geblesseerde NL{" "}
+              <span className="text-gray-400 font-normal">(leeg = niemand)</span>
             </label>
             <PlayerSelect
               value={geblesseerde}
               onChange={setGeblesseerde}
               disabled={!canEdit}
-              placeholder="Spelernaam"
+              placeholder="Leeglaten = niemand"
               selectie={selectie}
             />
           </div>
@@ -430,6 +488,52 @@ export default function WkPouleForm({
               disabled={!canEdit}
               className="input-field"
               placeholder="Spelersnaam + land"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Toernooi voorspellingen */}
+      <div className="card">
+        <h2 className="section-title">Toernooi Voorspellingen</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Wereldkampioen: <strong>30 punten</strong>. Finalisten: <strong>10 punten</strong> per correct land, <strong>+10 bonus</strong> als beide goed.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              🌍 Wereldkampioen
+            </label>
+            <CountrySelect
+              value={wereldkampioen}
+              onChange={setWereldkampioen}
+              disabled={!canEdit}
+              placeholder="Land"
+              countries={countries}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              🏟️ Finalist 1
+            </label>
+            <CountrySelect
+              value={finaleTeam1}
+              onChange={setFinaleTeam1}
+              disabled={!canEdit}
+              placeholder="Land"
+              countries={countries}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              🏟️ Finalist 2
+            </label>
+            <CountrySelect
+              value={finaleTeam2}
+              onChange={setFinaleTeam2}
+              disabled={!canEdit}
+              placeholder="Land"
+              countries={countries}
             />
           </div>
         </div>

@@ -65,19 +65,61 @@ export async function POST() {
     matchPointsMap.set(userId, pts)
   }
 
-  // Calculate incidents + topscorer per user
+  // Calculate incidents + topscorer + toernooi per user
   const upsertData = wkIncidents.map((inc) => {
     const matchPts = matchPointsMap.get(inc.user_id) ?? 0
 
     let incidentsPts = 0
     let topscorerPts = 0
+    let toernooiPts = 0
 
     if (wkUitslag) {
-      if (normalize(inc.rode_kaart) === normalize(wkUitslag.rode_kaart) && normalize(wkUitslag.rode_kaart) !== '') incidentsPts += 10
+      // rode_kaart: 30 correct player, 10 if both empty
+      if (normalize(wkUitslag.rode_kaart) === '') {
+        if (normalize(inc.rode_kaart) === '') incidentsPts += 10
+      } else if (normalize(inc.rode_kaart) === normalize(wkUitslag.rode_kaart)) {
+        incidentsPts += 30
+      }
+
+      // gele_kaart: 10 if correct (unchanged)
       if (normalize(inc.gele_kaart) === normalize(wkUitslag.gele_kaart) && normalize(wkUitslag.gele_kaart) !== '') incidentsPts += 10
-      if (normalize(inc.geblesseerde) === normalize(wkUitslag.geblesseerde) && normalize(wkUitslag.geblesseerde) !== '') incidentsPts += 10
+
+      // geblesseerde: 30 correct player, 10 if both empty
+      if (normalize(wkUitslag.geblesseerde) === '') {
+        if (normalize(inc.geblesseerde) === '') incidentsPts += 10
+      } else if (normalize(inc.geblesseerde) === normalize(wkUitslag.geblesseerde)) {
+        incidentsPts += 30
+      }
+
+      // eerste_goal_nl: 10 if correct (unchanged)
       if (normalize(inc.eerste_goal_nl) === normalize(wkUitslag.eerste_goal_nl) && normalize(wkUitslag.eerste_goal_nl) !== '') incidentsPts += 10
+
+      // topscorer: 20 if correct (unchanged)
       if (normalize(inc.topscorer_wk) === normalize(wkUitslag.topscorer_wk) && normalize(wkUitslag.topscorer_wk) !== '') topscorerPts = 20
+
+      // wereldkampioen: 30 if correct
+      if (normalize(wkUitslag.wereldkampioen) !== '' && normalize(inc.wereldkampioen) === normalize(wkUitslag.wereldkampioen)) {
+        toernooiPts += 30
+      }
+
+      // finale: 10 per correct team, +10 bonus if both correct (max 30)
+      const actualT1 = normalize(wkUitslag.finale_team1)
+      const actualT2 = normalize(wkUitslag.finale_team2)
+      if (actualT1 !== '' && actualT2 !== '') {
+        const actualPool = [actualT1, actualT2]
+        const predictions = [normalize(inc.finale_team1), normalize(inc.finale_team2)]
+        let finaleMatches = 0
+        for (const pred of predictions) {
+          if (pred === '') continue
+          const idx = actualPool.indexOf(pred)
+          if (idx !== -1) {
+            finaleMatches++
+            actualPool.splice(idx, 1)
+          }
+        }
+        toernooiPts += finaleMatches * 10
+        if (finaleMatches === 2) toernooiPts += 10
+      }
     }
 
     return {
@@ -85,7 +127,8 @@ export async function POST() {
       match_punten: matchPts,
       incidents_punten: incidentsPts,
       topscorer_punten: topscorerPts,
-      totaal: matchPts + incidentsPts + topscorerPts,
+      toernooi_punten: toernooiPts,
+      totaal: matchPts + incidentsPts + topscorerPts + toernooiPts,
       updated_at: new Date().toISOString(),
     }
   })
@@ -98,6 +141,7 @@ export async function POST() {
         match_punten: matchPts,
         incidents_punten: 0,
         topscorer_punten: 0,
+        toernooi_punten: 0,
         totaal: matchPts,
         updated_at: new Date().toISOString(),
       })

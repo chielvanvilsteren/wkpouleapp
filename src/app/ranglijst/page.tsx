@@ -56,6 +56,7 @@ export default async function RanglijstPage() {
       match_punten: wkScoresZichtbaar ? (wk?.match_punten ?? 0) : null,
       incidents_punten: wkScoresZichtbaar ? (wk?.incidents_punten ?? 0) : null,
       topscorer_punten: wkScoresZichtbaar ? (wk?.topscorer_punten ?? 0) : null,
+      toernooi_punten: wkScoresZichtbaar ? (wk?.toernooi_punten ?? 0) : null,
       wk_totaal: wkScoresZichtbaar ? (wk?.totaal ?? 0) : null,
       totaal: (scoresZichtbaar || wkScoresZichtbaar)
         ? ((pre?.totaal ?? 0) + (wk?.totaal ?? 0))
