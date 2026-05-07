@@ -15,12 +15,19 @@ const FLAP_V = -5.5     // direct velocity set per jump (original Flappy Bird st
 const PIPE_W = 62
 const PIPE_CAP = 20
 const PIPE_CAP_EXTRA = 8
-const PIPE_INTERVAL = 285
 const BALL_X = 130
-
-const SPEED = 3.8
-const GAP = 148
 const FLAP_COOLDOWN = 80   // ms between flaps (very responsive)
+
+// ─── Progressive difficulty (every 10 points) ─────────────────
+function getDifficulty(score: number) {
+  const level = Math.floor(score / 10)
+  return {
+    level,
+    speed:    Math.min(3.8 + level * 0.35, 6.5),
+    gap:      Math.max(148 - level * 9,    96),
+    interval: Math.max(285 - level * 6,    230),
+  }
+}
 
 type Screen = 'menu' | 'playing' | 'saveprompt' | 'gameover' | 'scoreboard'
 
@@ -33,6 +40,8 @@ interface GS {
   score: number
   tick: number
   dead: boolean
+  levelFlash: number  // ticks remaining for level-up flash
+  lastLevel: number
 }
 
 export interface ScoreEntry {
@@ -82,15 +91,16 @@ function mkPipe(x: number, gap: number): Pipe {
 }
 
 function initGS(): GS {
+  const { gap, interval } = getDifficulty(0)
   return {
     ballY: (H + CEIL) / 2,
     ballVY: 0,
     pipes: [
-      mkPipe(W + 60, GAP),
-      mkPipe(W + 60 + PIPE_INTERVAL, GAP),
-      mkPipe(W + 60 + PIPE_INTERVAL * 2, GAP),
+      mkPipe(W + 60, gap),
+      mkPipe(W + 60 + interval, gap),
+      mkPipe(W + 60 + interval * 2, gap),
     ],
-    score: 0, tick: 0, dead: false,
+    score: 0, tick: 0, dead: false, levelFlash: 0, lastLevel: 0,
   }
 }
 
@@ -350,7 +360,7 @@ function drawBall(ctx: CanvasRenderingContext2D, y: number, vy: number, name: st
 }
 
 // ─── Draw HUD ─────────────────────────────────────────────────
-function drawHUD(ctx: CanvasRenderingContext2D, score: number, name: string, credits: number) {
+function drawHUD(ctx: CanvasRenderingContext2D, score: number, name: string, credits: number, levelFlash: number) {
   const g = ctx.createLinearGradient(0, 0, 0, CEIL)
   g.addColorStop(0, 'rgba(0,0,0,0.92)')
   g.addColorStop(1, 'rgba(0,0,0,0.6)')
@@ -377,6 +387,16 @@ function drawHUD(ctx: CanvasRenderingContext2D, score: number, name: string, cre
   ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right'
   ctx.fillStyle = credits <= 2 ? '#ff6666' : '#ffa040'
   ctx.fillText(`⚡ ${credits}`, W - 16, midY)
+
+  // Level indicator
+  const { level } = getDifficulty(score)
+  if (level > 0) {
+    const alpha = levelFlash > 0 ? Math.min(1, levelFlash / 20) : 0.45
+    ctx.font = `bold 11px Arial`; ctx.textAlign = 'center'
+    ctx.fillStyle = `rgba(255,${levelFlash > 0 ? 220 : 160},0,${alpha})`
+    ctx.fillText(`LVL ${level}`, W / 2 + 64, midY)
+  }
+
   ctx.textBaseline = 'alphabetic'
 }
 
@@ -475,12 +495,14 @@ export default function FootballGame({
         gs.ballVY = Math.min(gs.ballVY + GRAVITY, 13)
         gs.ballY += gs.ballVY
 
+        const { speed, gap, interval, level } = getDifficulty(gs.score)
+
         // Pipes
-        for (const p of gs.pipes) p.x -= SPEED
+        for (const p of gs.pipes) p.x -= speed
         const maxX = Math.max(...gs.pipes.map(p => p.x))
         gs.pipes = gs.pipes.filter(p => p.x + PIPE_W > -10)
         while (gs.pipes.length < 3) {
-          gs.pipes.push(mkPipe(maxX + PIPE_INTERVAL, GAP))
+          gs.pipes.push(mkPipe(maxX + interval, gap))
         }
 
         // Score
@@ -489,6 +511,13 @@ export default function FootballGame({
             p.passed = true; gs.score++
           }
         }
+
+        // Level-up flash
+        if (level > gs.lastLevel) {
+          gs.lastLevel = level
+          gs.levelFlash = 60
+        }
+        if (gs.levelFlash > 0) gs.levelFlash--
 
         // Collision
         if (hit(gs.ballY, gs.pipes)) {
@@ -505,8 +534,20 @@ export default function FootballGame({
       drawBG(ctx, gs.tick)
       for (const p of gs.pipes) drawPipe(ctx, p)
       drawBall(ctx, gs.ballY, started ? gs.ballVY : 0, playerName, gs.dead)
-      drawHUD(ctx, gs.score, playerName, creditsRef.current)
+      drawHUD(ctx, gs.score, playerName, creditsRef.current, gs.levelFlash)
       if (!started) drawGetReady(ctx)
+
+      // Level-up flash overlay
+      if (gs.levelFlash > 40) {
+        const alpha = ((gs.levelFlash - 40) / 20) * 0.35
+        ctx.fillStyle = `rgba(255,200,0,${alpha})`
+        ctx.fillRect(0, CEIL, W, H - CEIL)
+        ctx.font = 'bold 32px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        ctx.fillStyle = `rgba(255,255,255,${alpha * 2.5})`
+        ctx.fillText(`🔥 Sneller! LVL ${gs.lastLevel}`, W / 2, H / 2)
+        ctx.textBaseline = 'alphabetic'
+      }
+
       if (gs.dead) {
         ctx.fillStyle = 'rgba(200,0,0,0.35)'
         ctx.fillRect(0, 0, W, H)
