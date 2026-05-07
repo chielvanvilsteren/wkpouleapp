@@ -100,6 +100,14 @@ export type WkScore = {
   updated_at: string
 }
 
+// ─── Flappy Bal ──────────────────────────────────────────────
+
+export type FlappyEntry = {
+  user_id: string
+  display_name: string
+  best_score: number
+}
+
 // ─── Ranglijst ───────────────────────────────────────────────
 
 export type RanglijstEntry = {

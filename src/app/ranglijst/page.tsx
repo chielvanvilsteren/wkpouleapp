@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import RanglijstTabs from '@/components/RanglijstTabs'
 import PageHeader from '@/components/PageHeader'
-import type { Profile, Score, WkScore, RanglijstEntry } from '@/types'
+import type { Profile, Score, WkScore, RanglijstEntry, FlappyEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +44,25 @@ export default async function RanglijstPage() {
     wkScores = new Map((wkRaw ?? []).map((s) => [s.user_id, s as WkScore]))
   }
 
+  // Flappy scores — best per user
+  const { data: flappyRaw } = await supabase
+    .from('flappy_scores')
+    .select('user_id, score')
+
+  const bestFlappy = new Map<string, number>()
+  for (const row of (flappyRaw ?? [])) {
+    const prev = bestFlappy.get(row.user_id) ?? 0
+    if (row.score > prev) bestFlappy.set(row.user_id, row.score)
+  }
+
+  const flappyEntries: FlappyEntry[] = Array.from(bestFlappy.entries())
+    .map(([user_id, best_score]) => ({
+      user_id,
+      display_name: profiles.find((p) => p.id === user_id)?.display_name ?? '???',
+      best_score,
+    }))
+    .sort((a, b) => b.best_score - a.best_score)
+
   const entries: RanglijstEntry[] = profiles.map((p) => {
     const pre = preScores.get(p.id)
     const wk = wkScores.get(p.id)
@@ -75,6 +94,7 @@ export default async function RanglijstPage() {
           entries={entries}
           scoresZichtbaar={scoresZichtbaar}
           wkScoresZichtbaar={wkScoresZichtbaar}
+          flappyEntries={flappyEntries}
         />
       </div>
     </>
