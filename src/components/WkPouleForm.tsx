@@ -174,8 +174,10 @@ export default function WkPouleForm({
   );
 
   const countries = useMemo(() => {
-    const all = matches.flatMap((m) => [m.home_team, m.away_team]);
-    return Array.from(new Set(all)).sort((a, b) => a.localeCompare(b, "nl"));
+    const groupStageTeams = matches
+      .filter((m) => m.stage === "group")
+      .flatMap((m) => [m.home_team, m.away_team]);
+    return Array.from(new Set(groupStageTeams)).sort((a, b) => a.localeCompare(b, "nl"));
   }, [matches]);
   const [incidentsDefinitief, setIncidentsDefinitief] = useState(
     initialIncidents?.is_definitief ?? false,
@@ -324,8 +326,58 @@ export default function WkPouleForm({
     (s) => s.home !== 0 || s.away !== 0,
   ).length;
 
+  const [puntenOpen, setPuntenOpen] = useState(false);
+
   return (
     <div className="space-y-6">
+      {/* Puntenverdeling */}
+      <div className="card p-0 overflow-hidden">
+        <button
+          className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          onClick={() => setPuntenOpen((v) => !v)}
+        >
+          <span>📊 Puntenverdeling</span>
+          <span className="text-gray-400 text-xs">{puntenOpen ? "▲" : "▼"}</span>
+        </button>
+        {puntenOpen && (
+          <div className="px-5 pb-5 pt-1 grid grid-cols-1 sm:grid-cols-3 gap-5 border-t border-gray-100">
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Wedstrijden</h3>
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  <tr><td className="py-1 text-gray-700">Exact score</td><td className="py-1 text-right font-semibold text-oranje-600">3 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">Juist resultaat</td><td className="py-1 text-right font-semibold text-oranje-600">1 pt</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">NL Incidenten</h3>
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  <tr><td className="py-1 text-gray-700">🟥 Rode kaart — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">🟥 Rode kaart — leeg + geen</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">🟨 Gele kaart — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">🩹 Geblesseerde — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">🩹 Geblesseerde — leeg + geen</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">⚽ Eerste doelpunt NL</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">🏆 Topscorer WK</td><td className="py-1 text-right font-semibold text-oranje-600">20 pt</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Toernooi</h3>
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  <tr><td className="py-1 text-gray-700">🌍 Wereldkampioen</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">🏟️ Finalist (per land)</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                  <tr><td className="py-1 text-gray-700">🏟️ Beide finalisten correct</td><td className="py-1 text-right font-semibold text-oranje-600">+10 bonus</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
       {incidentsDefinitief && (
         <div className="bg-green-50 border border-green-300 text-green-800 px-4 py-3 rounded-lg text-sm font-medium">
           ✅ Voorspelling definitief ingezonden. Wedstrijdscores en incidenten
