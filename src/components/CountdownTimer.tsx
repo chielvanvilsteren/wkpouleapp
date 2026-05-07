@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 // NL vs Japan: June 14, 2026
-const TARGET = new Date('2026-06-14T00:00:00')
+const TARGET = new Date('2026-06-14T00:00:00+02:00')
 
 type Time = { days: number; hours: number; minutes: number; seconds: number }
 

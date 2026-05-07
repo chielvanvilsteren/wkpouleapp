@@ -67,6 +67,7 @@ export default function AdminSyncLogs({ logs }: Props) {
               month: "short",
               hour: "2-digit",
               minute: "2-digit",
+              timeZone: "Europe/Amsterdam",
             })}
           </div>
           <div className="text-xs text-gray-400 mt-0.5">
@@ -97,6 +98,7 @@ export default function AdminSyncLogs({ logs }: Props) {
                   month: "short",
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: "Europe/Amsterdam",
                 })
               : "—"}
           </div>
@@ -146,6 +148,7 @@ export default function AdminSyncLogs({ logs }: Props) {
                         month: "short",
                         hour: "2-digit",
                         minute: "2-digit",
+                        timeZone: "Europe/Amsterdam",
                       })}
                     </span>
                   </div>

@@ -147,7 +147,7 @@ export default function AdminMatchResults({ matches }: Props) {
                       <span className="text-xs text-gray-400 w-16 shrink-0">
                         {new Date(match.match_date).toLocaleDateString(
                           "nl-NL",
-                          { day: "numeric", month: "short" },
+                          { day: "numeric", month: "short", timeZone: "Europe/Amsterdam" },
                         )}
                       </span>
                       <span className="flex-1 text-sm text-right text-gray-700 truncate">

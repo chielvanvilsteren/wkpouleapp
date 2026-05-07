@@ -113,7 +113,7 @@ export default function AdminToggles({ inzendingen_open, inzendingen_deadline, s
           </div>
           {deadline && (
             <p className="text-xs text-gray-400 mt-2">
-              Sluit: {new Date(`${deadline}T23:59:59`).toLocaleString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+              Sluit: {new Date(`${deadline}T23:59:59`).toLocaleString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' })}
             </p>
           )}
         </div>
@@ -163,7 +163,7 @@ export default function AdminToggles({ inzendingen_open, inzendingen_deadline, s
           </div>
           {wkDeadline && (
             <p className="text-xs text-gray-400 mt-2">
-              Sluit: {new Date(`${wkDeadline}T23:59:59`).toLocaleString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+              Sluit: {new Date(`${wkDeadline}T23:59:59`).toLocaleString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' })}
             </p>
           )}
         </div>

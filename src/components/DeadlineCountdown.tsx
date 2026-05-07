@@ -51,7 +51,7 @@ export default function DeadlineCountdown({ deadlineIso, label }: { deadlineIso:
     )
   }
 
-  const dateLabel = target.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })
+  const dateLabel = target.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Amsterdam' })
 
   return (
     <div className="flex flex-col items-center gap-3">

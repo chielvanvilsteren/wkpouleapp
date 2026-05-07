@@ -211,6 +211,7 @@ export default function PredictieForm({
                   month: "long",
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: "Europe/Amsterdam",
                 })}
               </strong>
               . Na de deadline zijn aanpassingen niet meer mogelijk.

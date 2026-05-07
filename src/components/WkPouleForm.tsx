@@ -323,6 +323,7 @@ export default function WkPouleForm({
                       {new Date(match.match_date).toLocaleDateString("nl-NL", {
                         day: "numeric",
                         month: "short",
+                        timeZone: "Europe/Amsterdam",
                       })}
                       {match.match_time && (
                         <span className="block text-gray-300">

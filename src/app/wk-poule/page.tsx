@@ -56,7 +56,7 @@ export default async function WkPoulePage() {
     ? <span className="text-red-300 font-medium">Deadline verstreken ⛔</span>
     : isOpen
       ? deadline
-        ? <span className="text-green-300 font-medium">Open tot {deadline.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} ✅</span>
+        ? <span className="text-green-300 font-medium">Open tot {deadline.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', timeZone: 'Europe/Amsterdam' })} ✅</span>
         : <span className="text-green-300 font-medium">Inzendingen open ✅</span>
       : <span className="text-amber-300 font-medium">Inzendingen gesloten ⚠️</span>
 
