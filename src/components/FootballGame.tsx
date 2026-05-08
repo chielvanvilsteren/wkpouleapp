@@ -72,16 +72,26 @@ async function fetchCredits(): Promise<{ available: number; preCredits: number; 
   } catch { return { available: 0, preCredits: 0, wkCredits: 0 } }
 }
 
-async function spendCredit(score: number, save: boolean): Promise<number> {
+async function startSession(): Promise<{ sessionId: string; newBalance: number } | null> {
   try {
     const res = await fetch('/api/flappy-credits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ score, save }),
+      body: JSON.stringify({ action: 'start' }),
     })
-    const data = await res.json()
-    return data.newBalance ?? 0
-  } catch { return 0 }
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+async function saveScore(sessionId: string, score: number): Promise<void> {
+  try {
+    await fetch('/api/flappy-credits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', sessionId, score }),
+    })
+  } catch { /* ignore */ }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -424,10 +434,13 @@ export default function FootballGame({
   const lastFlapRef = useRef(0)
   const creditsRef = useRef(0)
 
+  const sessionIdRef = useRef<string | null>(null)
+
   const [screen, setScreen] = useState<Screen>('menu')
   const [finalScore, setFinalScore] = useState(0)
   const [history, setHistory] = useState<ScoreEntry[]>([])
   const [scoresLoading, setScoresLoading] = useState(false)
+  const [starting, setStarting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [credits, setCredits] = useState<number | null>(null)
   const [creditBreakdown, setCreditBreakdown] = useState({ preCredits: 0, wkCredits: 0 })
@@ -620,11 +633,20 @@ export default function FootballGame({
 
             <div className="flex gap-3">
               <button
-                disabled={credits === null || credits <= 0}
-                onClick={() => { onGameStart?.(); setScreen('playing') }}
+                disabled={credits === null || credits <= 0 || starting}
+                onClick={async () => {
+                  setStarting(true)
+                  const result = await startSession()
+                  setStarting(false)
+                  if (!result) return
+                  sessionIdRef.current = result.sessionId
+                  setCredits(result.newBalance)
+                  onGameStart?.()
+                  setScreen('playing')
+                }}
                 className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black px-10 py-3.5 rounded-xl text-lg shadow-lg shadow-orange-900/40 transition-colors"
               >
-                {credits === 0 ? '⚡ Geen credits' : 'Spelen! ⚽'}
+                {starting ? 'Laden…' : credits === 0 ? '⚡ Geen credits' : 'Spelen! ⚽'}
               </button>
               <button onClick={async () => { setScoresLoading(true); setScreen('scoreboard'); const h = await fetchScores(); setHistory(h); setScoresLoading(false) }}
                 className="bg-white/10 hover:bg-white/20 text-white/80 font-semibold px-6 py-3.5 rounded-xl transition-colors"
@@ -645,15 +667,15 @@ export default function FootballGame({
             </div>
             <div className="bg-white/5 rounded-xl px-5 py-2 text-center">
               <p className="text-white/60 text-sm">Wil je je score opslaan?</p>
-              <p className="text-orange-400/70 text-xs mt-0.5">⚡ 1 credit wordt verbruikt</p>
+              <p className="text-white/30 text-xs mt-0.5">Credit is al verbruikt</p>
             </div>
             <div className="flex gap-3">
               <button
                 disabled={saving}
                 onClick={async () => {
+                  if (!sessionIdRef.current) { setScreen('gameover'); return }
                   setSaving(true)
-                  const newBal = await spendCredit(finalScore, true)
-                  setCredits(newBal)
+                  await saveScore(sessionIdRef.current, finalScore)
                   setSaving(false)
                   setScreen('gameover')
                 }}
@@ -663,13 +685,7 @@ export default function FootballGame({
               </button>
               <button
                 disabled={saving}
-                onClick={async () => {
-                  setSaving(true)
-                  const newBal = await spendCredit(finalScore, false)
-                  setCredits(newBal)
-                  setSaving(false)
-                  setScreen('gameover')
-                }}
+                onClick={() => setScreen('gameover')}
                 className="bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white/60 font-semibold px-8 py-3 rounded-xl transition-colors"
               >
                 ✗ Niet opslaan
