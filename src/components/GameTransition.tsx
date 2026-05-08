@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface Props {
   showText?: boolean
@@ -10,6 +10,11 @@ interface Props {
 export default function GameTransition({ showText = true, onComplete }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const flashRef = useRef<HTMLDivElement>(null)
+
+  const [isFirefox] = useState(() =>
+    typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent)
+  )
+  const [morphText, setMorphText] = useState('BONUS GAME')
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -85,10 +90,55 @@ export default function GameTransition({ showText = true, onComplete }: Props) {
   }, [])
 
   useEffect(() => {
-    if (!showText || !onComplete) return
+    if (!showText || !onComplete || isFirefox) return
     const timer = setTimeout(onComplete, 4500)
     return () => clearTimeout(timer)
-  }, [showText, onComplete])
+  }, [showText, onComplete, isFirefox])
+
+  useEffect(() => {
+    if (!isFirefox) return
+
+    const target = 'USE CHROME'
+    const scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    let rafId: number
+
+    const startDelay = setTimeout(() => {
+      const startTime = Date.now()
+      const duration = 3000
+
+      function animateMorph() {
+        const elapsed = Date.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const revealedCount = Math.floor(progress * target.length)
+
+        let text = ''
+        for (let i = 0; i < target.length; i++) {
+          if (target[i] === ' ') {
+            text += ' '
+          } else if (i < revealedCount) {
+            text += target[i]
+          } else {
+            text += scrambleChars[Math.floor(Math.random() * scrambleChars.length)]
+          }
+        }
+
+        setMorphText(text)
+
+        if (progress < 1) {
+          rafId = requestAnimationFrame(animateMorph)
+        } else {
+          setMorphText(target)
+        }
+      }
+
+      rafId = requestAnimationFrame(animateMorph)
+    }, 4500)
+
+    return () => {
+      clearTimeout(startDelay)
+      cancelAnimationFrame(rafId)
+    }
+  }, [isFirefox])
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'black', overflow: 'hidden' }}>
@@ -165,7 +215,7 @@ export default function GameTransition({ showText = true, onComplete }: Props) {
               animation: 'gt-shake 0.4s ease-in-out infinite',
             }}
           >
-            BONUS GAME
+            {morphText}
           </div>
         </div>
       )}
