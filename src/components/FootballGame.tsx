@@ -497,7 +497,9 @@ export default function FootballGame({
 
     const clickHandler = () => startAndFlap()
     const keyHandler = (e: KeyboardEvent) => { if (e.code === 'Space') startAndFlap() }
+    const touchHandler = (e: TouchEvent) => { e.preventDefault(); startAndFlap() }
     canvas.addEventListener('click', clickHandler)
+    canvas.addEventListener('touchstart', touchHandler, { passive: false })
     window.addEventListener('keydown', keyHandler)
 
     function loop() {
@@ -573,6 +575,7 @@ export default function FootballGame({
     return () => {
       cancelAnimationFrame(rafRef.current)
       canvas.removeEventListener('click', clickHandler)
+      canvas.removeEventListener('touchstart', touchHandler)
       window.removeEventListener('keydown', keyHandler)
       if (deathTimer) clearTimeout(deathTimer)
     }

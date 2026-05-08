@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Press_Start_2P } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/types";
 
@@ -22,6 +23,12 @@ const pressStart2P = Press_Start_2P({
 export const metadata: Metadata = {
   title: "WK Pool 2026",
   description: "Voorspel WK 2026 wedstrijden, selectie en incidenten",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'WK Poule',
+  },
+  formatDetection: { telephone: false },
 };
 
 export default async function RootLayout({
@@ -50,7 +57,13 @@ export default async function RootLayout({
 
   return (
     <html lang="nl">
+      <head>
+        <meta name="theme-color" content="#003082" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/icon-192" />
+      </head>
       <body className={`${inter.className} ${jetbrains.variable} ${pressStart2P.variable}`}>
+        <ServiceWorkerRegistrar />
         {!isDisplay && <Navbar user={user} profile={profile} />}
         <main className={isDisplay ? "" : "min-h-screen"}>{children}</main>
         {!isDisplay && (
