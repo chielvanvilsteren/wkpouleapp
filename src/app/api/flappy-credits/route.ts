@@ -1,13 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-
-function createAdminClient() {
-  return createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -87,30 +79,22 @@ export async function POST(req: Request) {
   const body = await req.json()
   const action = body?.action as string
 
-  const admin = createAdminClient()
-
-  // ── Start: deduct credit at play time, return session ID ──────
+  // ── Start: SECURITY DEFINER function does atomic balance check + insert ──
   if (action === 'start') {
+    const { data: sessionId, error } = await supabase.rpc('start_flappy_session')
+
+    if (error) {
+      if (error.code === 'P0001') {
+        return NextResponse.json({ error: 'Geen credits beschikbaar' }, { status: 403 })
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
     const balance = await getBalance(supabase, user.id)
-    if (balance.available <= 0) {
-      return NextResponse.json({ error: 'Geen credits beschikbaar' }, { status: 403 })
-    }
-
-    // Service role bypasses RLS — balance check above is the only gate
-    const { data: log, error: logErr } = await admin
-      .from('flappy_credit_log')
-      .insert({ user_id: user.id })
-      .select('session_id')
-      .single()
-
-    if (logErr || !log) {
-      return NextResponse.json({ error: logErr?.message ?? 'Server error' }, { status: 500 })
-    }
-
-    return NextResponse.json({ sessionId: log.session_id, newBalance: balance.available - 1 })
+    return NextResponse.json({ sessionId, newBalance: balance.available })
   }
 
-  // ── Save: bind score to session (UNIQUE prevents replay with different score) ──
+  // ── Save: RLS verifies session ownership, UNIQUE prevents replay ─────────
   if (action === 'save') {
     const sessionId = body?.sessionId as string | undefined
     const score = Number(body?.score)
@@ -119,26 +103,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ongeldige invoer' }, { status: 400 })
     }
 
-    // Verify session belongs to this user (use user JWT client for row-level check)
-    const { data: log } = await supabase
-      .from('flappy_credit_log')
-      .select('id')
-      .eq('session_id', sessionId)
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (!log) {
-      return NextResponse.json({ error: 'Ongeldige sessie' }, { status: 403 })
-    }
-
-    // Service role bypasses RLS — session ownership verified above
-    const { error: scoreErr } = await admin
+    const { error: scoreErr } = await supabase
       .from('flappy_scores')
       .insert({ user_id: user.id, score, credit_log_id: sessionId })
 
     if (scoreErr) {
       if (scoreErr.code === '23505') {
         return NextResponse.json({ error: 'Score al opgeslagen voor dit potje' }, { status: 409 })
+      }
+      // RLS rejection (session not owned) returns 42501 / new row violates RLS
+      if (scoreErr.code === '42501' || scoreErr.message.includes('row-level security')) {
+        return NextResponse.json({ error: 'Ongeldige sessie' }, { status: 403 })
       }
       return NextResponse.json({ error: scoreErr.message }, { status: 500 })
     }
