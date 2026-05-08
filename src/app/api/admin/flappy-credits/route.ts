@@ -145,7 +145,7 @@ export async function POST(req: Request) {
     title: '⚡ Flappy Bal credits!',
     body: `Je hebt ${amount} credit${amount > 1 ? 's' : ''} ontvangen${noteText}`,
     url: '/',
-  }).catch(() => {/* ignore */})
+  }).catch((e) => console.error('[push] admin grant failed', e))
 
   return NextResponse.json({ ok: true })
 }

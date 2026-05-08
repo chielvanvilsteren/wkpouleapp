@@ -9,10 +9,6 @@ function urlB64ToUint8Array(b64: string) {
   return Uint8Array.from(Array.from(raw).map((c) => c.charCodeAt(0)))
 }
 
-function isIOS() {
-  return /iPhone|iPad|iPod/.test(navigator.userAgent)
-}
-
 function isStandalone() {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -20,91 +16,91 @@ function isStandalone() {
   )
 }
 
+function isIOS() {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent)
+}
+
 async function subscribeUser() {
   const reg = await navigator.serviceWorker.ready
   const existing = await reg.pushManager.getSubscription()
-  if (existing) return
-
+  if (existing) return true
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlB64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
   })
-
-  await fetch('/api/push/subscribe', {
+  const res = await fetch('/api/push/subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(sub),
   })
+  return res.ok
 }
 
-type State = 'hidden' | 'prompt' | 'ios-not-installed'
+type State = 'hidden' | 'prompt'
 
 export default function PushNotificationSetup() {
   const [state, setState] = useState<State>('hidden')
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
-    if (Notification.permission === 'granted') {
-      // Already granted — subscribe silently (re-registers if needed)
-      subscribeUser().catch(() => {})
-      return
-    }
     if (Notification.permission === 'denied') return
     if (localStorage.getItem('push-dismissed')) return
 
-    const ios = isIOS()
-
-    if (ios && !isStandalone()) {
-      // iOS but not installed as PWA — can't do push
+    if (Notification.permission === 'granted') {
+      subscribeUser().catch(() => {})
       return
     }
 
-    // Show prompt banner
+    // iOS needs standalone mode for push
+    if (isIOS() && !isStandalone()) return
+
     setState('prompt')
   }, [])
 
   if (state === 'hidden') return null
 
-  if (state === 'ios-not-installed') {
-    return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 bg-knvb-500 text-white rounded-2xl p-4 shadow-2xl flex gap-3 items-start">
-        <span className="text-2xl">📲</span>
-        <div className="flex-1">
-          <p className="font-bold text-sm">Installeer de app voor notificaties</p>
-          <p className="text-white/70 text-xs mt-0.5">Tik op Delen → Zet op beginscherm, open dan de app.</p>
-        </div>
-        <button onClick={() => { localStorage.setItem('push-dismissed', '1'); setState('hidden') }} className="text-white/50 text-xl leading-none">×</button>
-      </div>
-    )
-  }
-
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 bg-knvb-500 text-white rounded-2xl p-4 shadow-2xl flex gap-3 items-center">
-      <span className="text-2xl">🔔</span>
-      <div className="flex-1">
-        <p className="font-bold text-sm">Blijf op de hoogte</p>
-        <p className="text-white/70 text-xs mt-0.5">Ontvang meldingen bij nieuwe scores en credits.</p>
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { localStorage.setItem('push-dismissed', '1'); setState('hidden') }} />
+
+      {/* Bottom sheet */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl p-6 pb-10">
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="text-6xl">🔔</div>
+
+          <div>
+            <h2 className="text-xl font-black text-gray-900">Blijf op de hoogte</h2>
+            <p className="text-gray-500 text-sm mt-1 max-w-xs mx-auto">
+              Ontvang een melding zodra je nieuwe Flappy Bal credits krijgt of jouw poule score is bijgewerkt.
+            </p>
+          </div>
+
+          <button
+            disabled={loading}
+            onClick={async () => {
+              setLoading(true)
+              try {
+                const perm = await Notification.requestPermission()
+                if (perm === 'granted') await subscribeUser()
+              } catch { /* ignore */ }
+              setState('hidden')
+              setLoading(false)
+            }}
+            className="w-full max-w-xs bg-knvb-500 hover:bg-knvb-600 disabled:opacity-50 text-white font-black text-lg py-4 rounded-2xl transition-colors"
+          >
+            {loading ? 'Even geduld…' : '🔔 Zet notificaties aan'}
+          </button>
+
+          <button
+            onClick={() => { localStorage.setItem('push-dismissed', '1'); setState('hidden') }}
+            className="text-gray-400 text-sm"
+          >
+            Nee, liever niet
+          </button>
+        </div>
       </div>
-      <div className="flex gap-2 shrink-0">
-        <button
-          onClick={() => { localStorage.setItem('push-dismissed', '1'); setState('hidden') }}
-          className="text-white/50 text-sm px-2 py-1"
-        >
-          Nee
-        </button>
-        <button
-          onClick={async () => {
-            setState('hidden')
-            try {
-              const perm = await Notification.requestPermission()
-              if (perm === 'granted') await subscribeUser()
-            } catch { /* ignore */ }
-          }}
-          className="bg-oranje-500 hover:bg-oranje-400 text-white text-sm font-bold px-4 py-1.5 rounded-xl"
-        >
-          Ja!
-        </button>
-      </div>
-    </div>
+    </>
   )
 }
