@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types'
 import { normalize, countMatches } from '@/lib/scoring-utils'
+import { sendPushToUser } from '@/lib/push'
 
 export async function POST() {
   const supabase = await createClient()
@@ -40,6 +41,18 @@ export async function POST() {
 
   const { error: upsertError } = await admin.from('scores').upsert(upsertData, { onConflict: 'user_id' })
   if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
+
+  // Push notifications fire-and-forget
+  for (const row of upsertData) {
+    const credits = row.selectie_punten + row.basis_xi_punten
+    if (credits > 0) {
+      sendPushToUser(row.user_id, {
+        title: '⚽ Pre Poule scores bijgewerkt!',
+        body: `Jouw score: ${row.totaal} punten · Je hebt ${credits} Flappy Bal credits verdiend`,
+        url: '/ranglijst',
+      }).catch(() => {/* ignore */})
+    }
+  }
 
   return NextResponse.json({ message: `Scores berekend voor ${upsertData.length} deelnemers.`, count: upsertData.length })
 }

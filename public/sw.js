@@ -12,7 +12,6 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  // Skip Supabase and API calls — always network
   const url = new URL(e.request.url);
   if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase')) return;
 
@@ -24,5 +23,33 @@ self.addEventListener('fetch', (e) => {
         return res;
       })
       .catch(() => caches.match(e.request))
+  );
+});
+
+// ─── Push notifications ───────────────────────────────────────
+self.addEventListener('push', (e) => {
+  let data = { title: 'WK Poule', body: '', url: '/' };
+  try { data = { ...data, ...e.data.json() }; } catch {}
+
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192',
+      badge: '/icon-192',
+      data: { url: data.url },
+      vibrate: [100, 50, 100],
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url ?? '/';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const existing = list.find((c) => c.url.includes(url));
+      if (existing) return existing.focus();
+      return clients.openWindow(url);
+    })
   );
 });

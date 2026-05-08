@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Press_Start_2P } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import PushNotificationSetup from "@/components/PushNotificationSetup";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/types";
@@ -64,6 +65,7 @@ export default async function RootLayout({
       </head>
       <body className={`${inter.className} ${jetbrains.variable} ${pressStart2P.variable}`}>
         <ServiceWorkerRegistrar />
+        {user && !isDisplay && <PushNotificationSetup />}
         {!isDisplay && <Navbar user={user} profile={profile} />}
         <main className={isDisplay ? "" : "min-h-screen"}>{children}</main>
         {!isDisplay && (

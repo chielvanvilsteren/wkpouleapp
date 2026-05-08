@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types'
 import { normalize, matchResult } from '@/lib/scoring-utils'
+import { sendPushToUser } from '@/lib/push'
 
 export async function POST() {
   const supabase = await createClient()
@@ -154,6 +155,18 @@ export async function POST() {
 
   const { error } = await admin.from('wk_scores').upsert(upsertData, { onConflict: 'user_id' })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Push notifications fire-and-forget
+  for (const row of upsertData) {
+    const wkCredits = row.match_punten > 0
+      ? Math.floor(row.match_punten / 2) // rough approximation: 5pt exact = 5c, 2pt result = 2c
+      : 0
+    sendPushToUser(row.user_id, {
+      title: '⚽ WK Poule score bijgewerkt!',
+      body: `Jouw WK score: ${row.totaal} punten (wedstrijden: ${row.match_punten} · incidenten: ${row.incidents_punten})`,
+      url: '/ranglijst',
+    }).catch(() => {/* ignore */})
+  }
 
   return NextResponse.json({ message: `WK scores berekend voor ${upsertData.length} deelnemers.`, count: upsertData.length })
 }

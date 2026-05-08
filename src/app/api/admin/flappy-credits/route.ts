@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendPushToUser } from '@/lib/push'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -137,6 +138,14 @@ export async function POST(req: Request) {
     note: typeof note === 'string' && note.trim() ? note.trim() : null,
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Fire-and-forget push notification
+  const noteText = typeof note === 'string' && note.trim() ? ` — ${note.trim()}` : ''
+  sendPushToUser(userId, {
+    title: '⚡ Flappy Bal credits!',
+    body: `Je hebt ${amount} credit${amount > 1 ? 's' : ''} ontvangen${noteText}`,
+    url: '/',
+  }).catch(() => {/* ignore */})
 
   return NextResponse.json({ ok: true })
 }
