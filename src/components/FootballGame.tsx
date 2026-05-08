@@ -410,10 +410,10 @@ function drawHUD(ctx: CanvasRenderingContext2D, score: number, name: string, cre
   ctx.textBaseline = 'alphabetic'
 }
 
-function drawGetReady(ctx: CanvasRenderingContext2D) {
+function drawGetReady(ctx: CanvasRenderingContext2D, mobile = false) {
   ctx.font = 'bold 17px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
   ctx.fillStyle = 'rgba(255,255,255,0.88)'
-  ctx.fillText('Druk SPATIE of klik om te starten', W / 2, H / 2 + 68)
+  ctx.fillText(mobile ? 'Tik om te starten' : 'Druk SPATIE of klik om te starten', W / 2, H / 2 + 68)
   ctx.textBaseline = 'alphabetic'
 }
 
@@ -444,6 +444,16 @@ export default function FootballGame({
   const [saving, setSaving] = useState(false)
   const [credits, setCredits] = useState<number | null>(null)
   const [creditBreakdown, setCreditBreakdown] = useState({ preCredits: 0, wkCredits: 0 })
+  const [isPortrait, setIsPortrait] = useState(
+    typeof window !== 'undefined' && window.innerHeight > window.innerWidth
+  )
+
+  useEffect(() => {
+    const check = () => setIsPortrait(window.innerHeight > window.innerWidth)
+    window.addEventListener('resize', check)
+    window.addEventListener('orientationchange', check)
+    return () => { window.removeEventListener('resize', check); window.removeEventListener('orientationchange', check) }
+  }, [])
 
   const flap = useCallback(() => {
     const gs = gsRef.current
@@ -550,7 +560,7 @@ export default function FootballGame({
       for (const p of gs.pipes) drawPipe(ctx, p)
       drawBall(ctx, gs.ballY, started ? gs.ballVY : 0, playerName, gs.dead)
       drawHUD(ctx, gs.score, playerName, creditsRef.current, gs.levelFlash)
-      if (!started) drawGetReady(ctx)
+      if (!started) drawGetReady(ctx, window.innerWidth < 768)
 
       // Level-up flash overlay
       if (gs.levelFlash > 40) {
@@ -582,14 +592,34 @@ export default function FootballGame({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen])
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
+  // Portrait mobile: ask to rotate
+  if (isMobile && isPortrait) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 text-white gap-6 px-8">
+        <div className="text-7xl animate-spin" style={{ animationDuration: '2s' }}>📱</div>
+        <div className="text-center">
+          <p className="text-2xl font-black mb-2">Draai je scherm</p>
+          <p className="text-white/50 text-sm">Flappy Bal speelt het beste in landschapsmodus</p>
+        </div>
+        <button onClick={onClose} className="text-white/30 text-sm mt-4">Sluiten</button>
+      </div>
+    )
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="relative bg-gray-950 rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)] border border-white/10"
-        style={{ width: Math.min(W, typeof window !== 'undefined' ? window.innerWidth - 16 : W) }}
+        className="relative bg-gray-950 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)]"
+        style={{
+          width: isMobile ? window.innerWidth : Math.min(W, window.innerWidth - 16),
+          borderRadius: isMobile ? 0 : 16,
+          border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
+        }}
       >
         <button
           onClick={onClose}
