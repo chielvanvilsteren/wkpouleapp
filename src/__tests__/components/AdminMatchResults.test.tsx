@@ -135,6 +135,15 @@ describe('AdminMatchResults', () => {
     expect(screen.getAllByText('Afgerond').length).toBe(2)
   })
 
+  it('toggle cycles Afgerond → Nog te spelen (third branch: finished resets)', () => {
+    render(<AdminMatchResults matches={groupMatches} />)
+    // groupMatches[1] starts as finished (Afgerond)
+    const afgerond = screen.getByText('Afgerond')
+    fireEvent.click(afgerond)
+    // After clicking Afgerond it should reset to "Nog te spelen"
+    expect(screen.getAllByText('Nog te spelen').length).toBe(2)
+  })
+
   it('save button triggers supabase update', async () => {
     render(<AdminMatchResults matches={groupMatches} />)
     const saveBtn = screen.getByRole('button', { name: /Uitslagen Opslaan/ })
@@ -231,7 +240,7 @@ describe('AdminMatchResults', () => {
   })
 
   it('uses empty string Bearer token when session is null', async () => {
-    mockGetSession.mockResolvedValueOnce({ data: { session: null } })
+    mockGetSession.mockResolvedValueOnce({ data: { session: null } } as any)
     render(<AdminMatchResults matches={groupMatches} />)
     fireEvent.click(screen.getByRole('button', { name: /Uitslagen Opslaan/ }))
     await waitFor(() => {

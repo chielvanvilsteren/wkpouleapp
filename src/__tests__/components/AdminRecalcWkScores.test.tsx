@@ -81,7 +81,7 @@ describe('AdminRecalcWkScores', () => {
   })
 
   it('uses empty Bearer token when session is null', async () => {
-    mockGetSession.mockResolvedValueOnce({ data: { session: null } })
+    mockGetSession.mockResolvedValueOnce({ data: { session: null } } as any)
     render(<AdminRecalcWkScores />)
     fireEvent.click(screen.getByRole('button', { name: /Herbereken/i }))
     await waitFor(() => {

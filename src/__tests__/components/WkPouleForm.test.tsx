@@ -361,7 +361,7 @@ describe('WkPouleForm', () => {
   })
 
   it('stops saving when user not logged in', async () => {
-    mockGetUser.mockResolvedValueOnce({ data: { user: null } })
+    mockGetUser.mockResolvedValueOnce({ data: { user: null } } as any)
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -379,7 +379,7 @@ describe('WkPouleForm', () => {
   })
 
   it('shows error when match upsert fails', async () => {
-    mockUpsert.mockResolvedValueOnce({ error: { message: 'Match save failed' } })
+    mockUpsert.mockResolvedValueOnce({ error: { message: 'Match save failed' } } as any)
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -449,8 +449,8 @@ describe('WkPouleForm', () => {
 
   it('shows error when incidents upsert fails', async () => {
     mockUpsert
-      .mockResolvedValueOnce({ error: null }) // match predictions OK
-      .mockResolvedValueOnce({ error: { message: 'Incidents DB error' } }) // incidents fail
+      .mockResolvedValueOnce({ error: null } as any) // match predictions OK
+      .mockResolvedValueOnce({ error: { message: 'Incidents DB error' } } as any) // incidents fail
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -480,10 +480,199 @@ describe('WkPouleForm', () => {
     fireEvent.click(screen.getByText('Ja, inzenden'))
     await waitFor(() => {
       // Both upserts called with definitief=true
-      const incidentsCall = mockUpsert.mock.calls[1]?.[0]
+      const calls = mockUpsert.mock.calls as any[]
+      const incidentsCall = calls[1]?.[0]
       expect(incidentsCall?.is_definitief).toBe(true)
       // Locked banner should appear
       expect(screen.getByText(/definitief ingezonden/)).toBeInTheDocument()
     })
+  })
+
+  it('PlayerSelect renders as dropdown when selectie prop is provided', () => {
+    render(
+      <WkPouleForm
+        matches={groupMatches}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+        selectie={['Dumfries', 'De Jong', 'Depay']}
+      />
+    )
+    // When selectie is set, player fields become <select> dropdowns
+    expect(screen.getAllByRole('combobox').length).toBeGreaterThan(0)
+    // The dropdown shows "— Kies een speler —" as placeholder option
+    expect(screen.getAllByText(/Kies een speler/).length).toBeGreaterThan(0)
+  })
+
+  it('PlayerSelect dropdown onChange updates the field value', () => {
+    render(
+      <WkPouleForm
+        matches={groupMatches}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+        selectie={['Dumfries', 'De Jong', 'Depay']}
+      />
+    )
+    const selects = screen.getAllByRole('combobox')
+    // Change the first select (rode_kaart player select)
+    fireEvent.change(selects[0], { target: { value: 'Dumfries' } })
+    expect((selects[0] as HTMLSelectElement).value).toBe('Dumfries')
+  })
+
+  it('CountrySelect renders as dropdown when group matches provide countries', () => {
+    render(
+      <WkPouleForm
+        matches={groupMatches}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    // group matches have home/away teams, so countries = ['Brazil', 'Germany', 'Japan', 'Netherlands'] (sorted)
+    // CountrySelect renders as <select> with "— Kies een land —"
+    expect(screen.getAllByText(/Kies een land/).length).toBeGreaterThan(0)
+  })
+
+  it('CountrySelect dropdown onChange updates wereldkampioen', () => {
+    render(
+      <WkPouleForm
+        matches={groupMatches}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    // Find country selects (wereldkampioen + finalist 1 + finalist 2)
+    const countrySelects = screen.getAllByText(/Kies een land/)
+    // Get the parent select elements
+    const selects = screen.getAllByRole('combobox')
+    // The last selects are country dropdowns (player selects come first when no selectie prop)
+    // With no selectie prop, no player dropdowns exist — all comboboxes are country selects
+    fireEvent.change(selects[0], { target: { value: 'Netherlands' } })
+    expect((selects[0] as HTMLSelectElement).value).toBe('Netherlands')
+  })
+
+  it('match with match_time uses time for kickoff calculation', () => {
+    const matchWithTime: Match[] = [
+      {
+        id: 20,
+        match_number: 10,
+        stage: 'group',
+        group_name: 'A',
+        home_team: 'France',
+        away_team: 'Spain',
+        match_date: '2026-06-20',
+        match_time: '18:00:00',
+        home_score: null,
+        away_score: null,
+        is_live: false,
+        is_finished: false,
+      },
+    ]
+    render(
+      <WkPouleForm
+        matches={matchWithTime}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowFuture}
+      />
+    )
+    // With nowFuture, all matches including those with match_time should be locked
+    expect(screen.getAllByText('🔒').length).toBeGreaterThan(0)
+  })
+
+  it('match_time is displayed as HH:MM in the match row', () => {
+    const matchWithTime: Match[] = [
+      {
+        id: 21,
+        match_number: 11,
+        stage: 'group',
+        group_name: 'A',
+        home_team: 'Portugal',
+        away_team: 'Belgium',
+        match_date: '2026-06-21',
+        match_time: '21:00:00',
+        home_score: null,
+        away_score: null,
+        is_live: false,
+        is_finished: false,
+      },
+    ]
+    render(
+      <WkPouleForm
+        matches={matchWithTime}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    // match_time is displayed sliced to HH:MM
+    expect(screen.getByText('21:00')).toBeInTheDocument()
+  })
+
+  it('initialPredictions pre-fills score map for matching match ids', () => {
+    const initialPredictions: MatchPrediction[] = [
+      { id: 'pred-1', user_id: 'user-1', match_id: 1, home_score: 2, away_score: 1 },
+    ]
+    render(
+      <WkPouleForm
+        matches={groupMatches}
+        initialPredictions={initialPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    // Score inputs for match 1 should have values 2 and 1
+    const scoreInputs = screen.getAllByRole('spinbutton')
+    expect(scoreInputs[0]).toHaveValue(2)
+    expect(scoreInputs[1]).toHaveValue(1)
+  })
+
+  it('puntenOpen accordion toggles scoring overview', () => {
+    render(
+      <WkPouleForm
+        matches={groupMatches}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    // Initially the scoring table is not visible
+    expect(screen.queryByText('Exact score')).not.toBeInTheDocument()
+    // Click the Puntenverdeling button to open it
+    fireEvent.click(screen.getByText(/Puntenverdeling/))
+    expect(screen.getByText('Exact score')).toBeInTheDocument()
+    // Click again to close
+    fireEvent.click(screen.getByText(/Puntenverdeling/))
+    expect(screen.queryByText('Exact score')).not.toBeInTheDocument()
+  })
+
+  it('CountrySelect text input onChange fires when countries is empty (no group matches)', () => {
+    // With only final-stage matches, there are no group teams so countries = []
+    // CountrySelect renders as a plain <input> instead of <select>
+    render(
+      <WkPouleForm
+        matches={finalMatch}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    // All country fields render as text inputs (placeholder "Land")
+    const landInputs = screen.getAllByPlaceholderText('Land')
+    expect(landInputs.length).toBeGreaterThan(0)
+    // Trigger the onChange handler on the first country text input (wereldkampioen)
+    fireEvent.change(landInputs[0], { target: { value: 'Netherlands' } })
+    expect(screen.getByDisplayValue('Netherlands')).toBeInTheDocument()
   })
 })

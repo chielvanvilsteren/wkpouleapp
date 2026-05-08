@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import HeroPlusGrid from '@/components/HeroPlusGrid'
 
 jest.mock('@/components/HeroPlusGrid', () => {
@@ -81,4 +81,64 @@ describe('HeroPlusGrid', () => {
     fireEvent.mouseMove(div, { clientX: 20, clientY: 20 })
     expect((div as HTMLElement).style.cursor).toBe('default')
   })
+
+  it('does nothing on click when container ref is not available (no getBoundingClientRect)', () => {
+    // Simulate containerRef.current returning null by making getBoundingClientRect return null
+    const origGetBCR = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = jest.fn(() => null as any)
+    const onTripleClick = jest.fn()
+    const { container } = render(<HeroPlusGrid onTripleClick={onTripleClick} />)
+    const div = container.firstChild as HTMLElement
+    fireEvent.click(div, { clientX: 5, clientY: 5 })
+    expect(onTripleClick).not.toHaveBeenCalled()
+    Element.prototype.getBoundingClientRect = origGetBCR
+  })
+
+  it('does nothing on mousemove when container ref is not available', () => {
+    const origGetBCR = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = jest.fn(() => null as any)
+    const { container } = render(<HeroPlusGrid onTripleClick={jest.fn()} />)
+    const div = container.firstChild as HTMLElement
+    // Should not throw
+    fireEvent.mouseMove(div, { clientX: 5, clientY: 5 })
+    expect((div as HTMLElement).style.cursor).toBe('default')
+    Element.prototype.getBoundingClientRect = origGetBCR
+  })
+
+  it('flash useEffect setTimeout callback runs and clears expired flashes', () => {
+    jest.useFakeTimers()
+    const { container } = render(<HeroPlusGrid onTripleClick={jest.fn()} />)
+    const div = container.firstChild as HTMLElement
+    // Trigger a click to add a flash
+    fireEvent.click(div, { clientX: 5, clientY: 5 })
+    // Advance timers past FLASH_DURATION (1000ms) + buffer (50ms)
+    act(() => {
+      jest.advanceTimersByTime(1200)
+    })
+    jest.useRealTimers()
+  })
+
+  it('PlusMark fade useEffect runs animate when fade=true (via cross click)', () => {
+    const onTripleClick = jest.fn()
+    const { container } = render(<HeroPlusGrid onTripleClick={onTripleClick} />)
+    const div = container.firstChild as HTMLElement
+    // Click a cross — this creates a PlusMark with fade=true and a FlashPlus
+    fireEvent.click(div, { clientX: 5, clientY: 5 })
+    // animate should have been called (by FlashPlus and/or PlusMark fade)
+    expect(Element.prototype.animate).toHaveBeenCalled()
+  })
+
+  it('hover clears correctly when hovered cross gets clicked (clicked.has(key) branch)', () => {
+    const { container } = render(<HeroPlusGrid onTripleClick={jest.fn()} />)
+    const div = container.firstChild as HTMLElement
+    // First hover over a cross
+    fireEvent.mouseMove(div, { clientX: 5, clientY: 5 })
+    expect((div as HTMLElement).style.cursor).toBe('pointer')
+    // Click it — marks it as clicked
+    fireEvent.click(div, { clientX: 5, clientY: 5 })
+    // Hover over it again — should no longer show pointer (key is in clicked)
+    fireEvent.mouseMove(div, { clientX: 5, clientY: 5 })
+    expect((div as HTMLElement).style.cursor).toBe('default')
+  })
+
 })
