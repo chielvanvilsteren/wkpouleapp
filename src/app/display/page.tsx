@@ -1,6 +1,7 @@
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import DisplayRefresh from "./DisplayRefresh";
+import DisplayToggle from "./DisplayToggle";
 import type { Database, Profile, Score, WkScore } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -55,15 +56,15 @@ export default async function DisplayPage() {
   >[];
   const userIds = profiles.map((p) => p.id);
 
+  const admin = createServiceClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
   const preIngevuldSet = new Set<string>();
   const wkIngevuldSet = new Set<string>();
 
   if (userIds.length > 0 && (!preDeadlineVerstreken || !wkDeadlineVerstreken)) {
-    const admin = createServiceClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-
     await Promise.all([
       !preDeadlineVerstreken
         ? admin
@@ -115,22 +116,41 @@ export default async function DisplayPage() {
     ]);
   }
 
-  // Flappy Bal: best score per user
-  const flappyMap = new Map<string, number>()
+  // Flappy Bal: top-10 best scores, all users (not deelnemers-only)
+  type FlappyRow = { user_id: string; display_name: string; best_score: number };
+  const flappyEntries: FlappyRow[] = [];
   {
-    const admin = createServiceClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-    const { data: flappyScores } = await admin
-      .from('flappy_scores')
-      .select('user_id, score')
-      .order('score', { ascending: false })
-      .limit(200) as unknown as { data: { user_id: string; score: number }[] | null }
-    for (const s of flappyScores ?? []) {
-      if (!flappyMap.has(s.user_id) || s.score > flappyMap.get(s.user_id)!) {
-        flappyMap.set(s.user_id, s.score)
+    const { data: allScores } = await admin
+      .from("flappy_scores")
+      .select("user_id, score")
+      .order("score", { ascending: false })
+      .limit(500) as unknown as { data: { user_id: string; score: number }[] | null };
+
+    const bestMap = new Map<string, number>();
+    for (const s of allScores ?? []) {
+      if (!bestMap.has(s.user_id) || s.score > bestMap.get(s.user_id)!) {
+        bestMap.set(s.user_id, s.score);
       }
+    }
+
+    if (bestMap.size > 0) {
+      const { data: allProfiles } = await admin
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", Array.from(bestMap.keys())) as unknown as { data: { id: string; display_name: string }[] | null };
+
+      const nameMap = new Map((allProfiles ?? []).map((p) => [p.id, p.display_name]));
+
+      Array.from(bestMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .forEach(([uid, score]) => {
+          flappyEntries.push({
+            user_id: uid,
+            display_name: nameMap.get(uid) ?? "Onbekend",
+            best_score: score,
+          });
+        });
     }
   }
 
@@ -145,7 +165,6 @@ export default async function DisplayPage() {
       totaal: (pre?.totaal ?? 0) + (wk?.totaal ?? 0),
       pre_ingevuld: preIngevuldSet.has(p.id),
       wk_ingevuld: wkIngevuldSet.has(p.id),
-      flappy_best: flappyMap.get(p.id) ?? null,
     };
   });
 
@@ -169,13 +188,199 @@ export default async function DisplayPage() {
     return byName(a, b);
   });
 
-  const flappyEntries = [...baseEntries]
-    .filter((e) => e.flappy_best !== null)
-    .sort((a, b) => (b.flappy_best ?? 0) - (a.flappy_best ?? 0))
-    .slice(0, 10);
-
   const thCls = "px-4 py-3 text-center";
   const tdCls = "px-4 py-3 text-center";
+
+  const pouleView = (
+    <div className="px-4 pb-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+      {/* Pre-poule + WK Poule */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="flex flex-col">
+          <h2 className="text-white font-bold text-xl text-center mb-3">
+            Pre Poule
+          </h2>
+          <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-oranje-500 text-white">
+                  <th className="px-4 py-3 text-left w-10">#</th>
+                  <th className="px-4 py-3 text-left">Naam</th>
+                  <th className={thCls + " font-bold"}>Punten</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preEntries.map((entry, idx) => (
+                  <tr
+                    key={entry.user_id}
+                    className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && scoresZichtbaar ? "bg-oranje-50" : ""}`}
+                  >
+                    <td className="px-4 py-3 text-center font-bold text-gray-400">
+                      <Rank idx={idx} showMedals={scoresZichtbaar} />
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-gray-900">
+                      {entry.display_name}
+                    </td>
+                    <td className={tdCls}>
+                      {scoresZichtbaar ? (
+                        <span className="font-bold text-oranje-600 text-xl">
+                          {entry.pre_totaal}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex flex-col">
+          <h2 className="text-white font-bold text-xl text-center mb-3">
+            WK Poule
+          </h2>
+          <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-oranje-500 text-white">
+                  <th className="px-4 py-3 text-left w-10">#</th>
+                  <th className="px-4 py-3 text-left">Naam</th>
+                  <th className={thCls + " font-bold"}>Punten</th>
+                </tr>
+              </thead>
+              <tbody>
+                {wkEntries.map((entry, idx) => (
+                  <tr
+                    key={entry.user_id}
+                    className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && wkScoresZichtbaar ? "bg-oranje-50" : ""}`}
+                  >
+                    <td className="px-4 py-3 text-center font-bold text-gray-400">
+                      <Rank idx={idx} showMedals={true} />
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-gray-900">
+                      {entry.display_name}
+                    </td>
+                    <td className={tdCls}>
+                      {wkScoresZichtbaar ? (
+                        <span className="font-bold text-oranje-600 text-xl">
+                          {entry.wk_totaal}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">0</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Gecombineerd */}
+      <div className="flex flex-col">
+        <h2 className="text-white font-bold text-xl text-center mb-3">
+          Gecombineerd
+        </h2>
+        <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-oranje-500 text-white">
+                <th className="px-4 py-3 text-left w-10">#</th>
+                <th className="px-4 py-3 text-left">Naam</th>
+                <th className={thCls}>Pre Poule</th>
+                <th className={thCls}>WK Poule</th>
+                <th className={thCls + " font-bold"}>Totaal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {totaalEntries.map((entry, idx) => (
+                <tr
+                  key={entry.user_id}
+                  className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && anyScores ? "bg-oranje-50" : ""}`}
+                >
+                  <td className="px-4 py-3 text-center font-bold text-gray-400">
+                    <Rank idx={idx} showMedals={anyScores} />
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-gray-900">
+                    {entry.display_name}
+                  </td>
+                  <td className={tdCls + " text-gray-600"}>
+                    {scoresZichtbaar ? (
+                      entry.pre_totaal
+                    ) : (
+                      <span className="text-gray-400">0</span>
+                    )}
+                  </td>
+                  <td className={tdCls + " text-gray-600"}>
+                    {wkScoresZichtbaar ? (
+                      entry.wk_totaal
+                    ) : (
+                      <span className="text-gray-400">0</span>
+                    )}
+                  </td>
+                  <td className={tdCls}>
+                    {anyScores ? (
+                      <span className="font-bold text-oranje-600 text-xl">
+                        {entry.totaal}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">0</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  const flappyView = (
+    <div className="px-4 pb-6 max-w-xl mx-auto w-full">
+      <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-oranje-500 text-white">
+              <th className="px-4 py-3 text-left w-10">#</th>
+              <th className="px-4 py-3 text-left">Naam</th>
+              <th className={thCls + " font-bold"}>Best</th>
+            </tr>
+          </thead>
+          <tbody>
+            {flappyEntries.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="px-4 py-10 text-center text-gray-400">
+                  Nog geen scores
+                </td>
+              </tr>
+            ) : (
+              flappyEntries.map((entry, idx) => (
+                <tr
+                  key={entry.user_id}
+                  className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 ? "bg-oranje-50" : ""}`}
+                >
+                  <td className="px-4 py-3 text-center font-bold text-gray-400">
+                    <Rank idx={idx} showMedals={true} />
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-gray-900">
+                    {entry.display_name}
+                  </td>
+                  <td className={tdCls}>
+                    <span className="font-bold text-oranje-600 text-2xl">
+                      {entry.best_score}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-knvb-500 flex flex-col">
@@ -188,201 +393,7 @@ export default async function DisplayPage() {
         </h1>
       </div>
 
-      <div className="flex-1 px-4 pb-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
-        {/* Top row: Pre-poule + WK Poule */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Pre-poule */}
-          <div className="flex flex-col">
-            <h2 className="text-white font-bold text-xl text-center mb-3">
-              Pre Poule
-            </h2>
-            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-oranje-500 text-white">
-                    <th className="px-4 py-3 text-left w-10">#</th>
-                    <th className="px-4 py-3 text-left">Naam</th>
-                    <th className={thCls + " font-bold"}>Punten</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preEntries.map((entry, idx) => (
-                    <tr
-                      key={entry.user_id}
-                      className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && scoresZichtbaar ? "bg-oranje-50" : ""}`}
-                    >
-                      <td className="px-4 py-3 text-center font-bold text-gray-400">
-                        <Rank idx={idx} showMedals={scoresZichtbaar} />
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">
-                        {entry.display_name}
-                      </td>
-                      <td className={tdCls}>
-                        {scoresZichtbaar ? (
-                          <span className="font-bold text-oranje-600 text-xl">
-                            {entry.pre_totaal}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* WK Poule */}
-          <div className="flex flex-col">
-            <h2 className="text-white font-bold text-xl text-center mb-3">
-              WK Poule
-            </h2>
-            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-oranje-500 text-white">
-                    <th className="px-4 py-3 text-left w-10">#</th>
-                    <th className="px-4 py-3 text-left">Naam</th>
-                    <th className={thCls + " font-bold"}>Punten</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {wkEntries.map((entry, idx) => (
-                    <tr
-                      key={entry.user_id}
-                      className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && wkScoresZichtbaar ? "bg-oranje-50" : ""}`}
-                    >
-                      <td className="px-4 py-3 text-center font-bold text-gray-400">
-                        <Rank idx={idx} showMedals={true} />
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">
-                        {entry.display_name}
-                      </td>
-                      <td className={tdCls}>
-                        {wkScoresZichtbaar ? (
-                          <span className="font-bold text-oranje-600 text-xl">
-                            {entry.wk_totaal}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">0</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom row: Gecombineerd + Flappy Bal */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Gecombineerd */}
-          <div className="flex flex-col">
-            <h2 className="text-white font-bold text-xl text-center mb-3">
-              Gecombineerd
-            </h2>
-            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-oranje-500 text-white">
-                    <th className="px-4 py-3 text-left w-10">#</th>
-                    <th className="px-4 py-3 text-left">Naam</th>
-                    <th className={thCls}>Pre Poule</th>
-                    <th className={thCls}>WK Poule</th>
-                    <th className={thCls + " font-bold"}>Totaal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {totaalEntries.map((entry, idx) => (
-                    <tr
-                      key={entry.user_id}
-                      className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && anyScores ? "bg-oranje-50" : ""}`}
-                    >
-                      <td className="px-4 py-3 text-center font-bold text-gray-400">
-                        <Rank idx={idx} showMedals={anyScores} />
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">
-                        {entry.display_name}
-                      </td>
-                      <td className={tdCls + " text-gray-600"}>
-                        {scoresZichtbaar ? (
-                          entry.pre_totaal
-                        ) : (
-                          <span className="text-gray-400">0</span>
-                        )}
-                      </td>
-                      <td className={tdCls + " text-gray-600"}>
-                        {wkScoresZichtbaar ? (
-                          entry.wk_totaal
-                        ) : (
-                          <span className="text-gray-400">0</span>
-                        )}
-                      </td>
-                      <td className={tdCls}>
-                        {anyScores ? (
-                          <span className="font-bold text-oranje-600 text-xl">
-                            {entry.totaal}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">0</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Flappy Bal */}
-          <div className="flex flex-col">
-            <h2 className="text-white font-bold text-xl text-center mb-3">
-              ⚽ Flappy Bal
-            </h2>
-            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-oranje-500 text-white">
-                    <th className="px-4 py-3 text-left w-10">#</th>
-                    <th className="px-4 py-3 text-left">Naam</th>
-                    <th className={thCls + " font-bold"}>Best</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {flappyEntries.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-6 text-center text-gray-400 text-sm">
-                        Nog geen scores
-                      </td>
-                    </tr>
-                  ) : (
-                    flappyEntries.map((entry, idx) => (
-                      <tr
-                        key={entry.user_id}
-                        className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 ? "bg-oranje-50" : ""}`}
-                      >
-                        <td className="px-4 py-3 text-center font-bold text-gray-400">
-                          <Rank idx={idx} showMedals={true} />
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-gray-900">
-                          {entry.display_name}
-                        </td>
-                        <td className={tdCls}>
-                          <span className="font-bold text-oranje-600 text-xl">
-                            {entry.flappy_best}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DisplayToggle pouleView={pouleView} flappyView={flappyView} />
 
       <div className="text-center pb-4 text-white/40 text-sm">
         Vernieuwt automatisch elke 30 seconden
