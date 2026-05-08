@@ -589,6 +589,11 @@ export default function FootballGame({
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
 
+  // Mobile: scale canvas to fill full screen height, anchor top-left so ball stays visible
+  const mobileScale = isMobile
+    ? typeof window !== 'undefined' ? window.innerHeight / H : 1
+    : 1
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
@@ -598,6 +603,7 @@ export default function FootballGame({
         className="relative bg-gray-950 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)]"
         style={{
           width: isMobile ? window.innerWidth : Math.min(W, window.innerWidth - 16),
+          height: isMobile ? window.innerHeight : 'auto',
           borderRadius: isMobile ? 0 : 16,
           border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
         }}
@@ -610,8 +616,19 @@ export default function FootballGame({
         {screen === 'playing' && (
           <canvas
             ref={canvasRef} width={W} height={H}
-            className="block w-full cursor-pointer select-none"
-            style={{ aspectRatio: `${W}/${H}` }}
+            className="block cursor-pointer select-none"
+            style={isMobile ? {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: W,
+              height: H,
+              transform: `scale(${mobileScale})`,
+              transformOrigin: 'top left',
+            } : {
+              width: '100%',
+              aspectRatio: `${W}/${H}`,
+            }}
           />
         )}
 
