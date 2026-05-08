@@ -420,7 +420,7 @@ function drawGetReady(ctx: CanvasRenderingContext2D, mobile = false) {
 // ─── Component ────────────────────────────────────────────────
 export default function FootballGame({
   playerName,
-  onClose,
+  onClose: onCloseRaw,
   onGameStart,
 }: {
   playerName: string
@@ -428,6 +428,11 @@ export default function FootballGame({
   onClose: () => void
   onGameStart?: () => void
 }) {
+  const onClose = () => {
+    try { (screen as unknown as { orientation?: { unlock(): void } }).orientation?.unlock() } catch { /* ignore */ }
+    onCloseRaw()
+  }
+
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gsRef = useRef<GS | null>(null)
   const rafRef = useRef(0)
@@ -444,16 +449,6 @@ export default function FootballGame({
   const [saving, setSaving] = useState(false)
   const [credits, setCredits] = useState<number | null>(null)
   const [creditBreakdown, setCreditBreakdown] = useState({ preCredits: 0, wkCredits: 0 })
-  const [isPortrait, setIsPortrait] = useState(
-    typeof window !== 'undefined' && window.innerHeight > window.innerWidth
-  )
-
-  useEffect(() => {
-    const check = () => setIsPortrait(window.innerHeight > window.innerWidth)
-    window.addEventListener('resize', check)
-    window.addEventListener('orientationchange', check)
-    return () => { window.removeEventListener('resize', check); window.removeEventListener('orientationchange', check) }
-  }, [])
 
   const flap = useCallback(() => {
     const gs = gsRef.current
@@ -593,20 +588,6 @@ export default function FootballGame({
   }, [screen])
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-
-  // Portrait mobile: ask to rotate
-  if (isMobile && isPortrait) {
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 text-white gap-6 px-8">
-        <div className="text-7xl animate-spin" style={{ animationDuration: '2s' }}>📱</div>
-        <div className="text-center">
-          <p className="text-2xl font-black mb-2">Draai je scherm</p>
-          <p className="text-white/50 text-sm">Flappy Bal speelt het beste in landschapsmodus</p>
-        </div>
-        <button onClick={onClose} className="text-white/30 text-sm mt-4">Sluiten</button>
-      </div>
-    )
-  }
 
   return (
     <div

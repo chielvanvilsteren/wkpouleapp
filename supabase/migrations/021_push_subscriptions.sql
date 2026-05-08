@@ -22,3 +22,12 @@ CREATE POLICY "push_admin_read"
       SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true
     )
   );
+
+-- Fix: admins can read all credit_log rows to show correct spent/available counts
+CREATE POLICY "flappy_credit_log_select_admin"
+  ON flappy_credit_log FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true
+    )
+  );
