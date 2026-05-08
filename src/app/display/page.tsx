@@ -117,29 +117,37 @@ export default async function DisplayPage() {
   }
 
   // Flappy Bal: top-10 best scores, all users (not deelnemers-only)
+  // Untyped client — flappy_scores is not in the Database type
+  const flappyAdmin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
   type FlappyRow = { user_id: string; display_name: string; best_score: number };
   const flappyEntries: FlappyRow[] = [];
   {
-    const { data: allScores } = await admin
+    const { data: allScores } = await flappyAdmin
       .from("flappy_scores")
       .select("user_id, score")
       .order("score", { ascending: false })
-      .limit(500) as unknown as { data: { user_id: string; score: number }[] | null };
+      .limit(500);
 
     const bestMap = new Map<string, number>();
-    for (const s of allScores ?? []) {
+    for (const s of (allScores ?? []) as { user_id: string; score: number }[]) {
       if (!bestMap.has(s.user_id) || s.score > bestMap.get(s.user_id)!) {
         bestMap.set(s.user_id, s.score);
       }
     }
 
     if (bestMap.size > 0) {
-      const { data: allProfiles } = await admin
+      const { data: allProfiles } = await flappyAdmin
         .from("profiles")
         .select("id, display_name")
-        .in("id", Array.from(bestMap.keys())) as unknown as { data: { id: string; display_name: string }[] | null };
+        .in("id", Array.from(bestMap.keys()));
 
-      const nameMap = new Map((allProfiles ?? []).map((p) => [p.id, p.display_name]));
+      const nameMap = new Map(
+        ((allProfiles ?? []) as { id: string; display_name: string }[]).map((p) => [p.id, p.display_name])
+      );
 
       Array.from(bestMap.entries())
         .sort((a, b) => b[1] - a[1])
