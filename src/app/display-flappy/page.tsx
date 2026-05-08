@@ -1,59 +1,32 @@
-import { createClient as createServiceClient } from "@supabase/supabase-js";
-import DisplayRefresh from "../display/DisplayRefresh";
+"use client"
 
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from "react";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-export default async function DisplayFlappyPage() {
-  const admin = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+type Entry = { user_id: string; display_name: string; best_score: number };
 
-  const { data: allScores } = await admin
-    .from("flappy_scores")
-    .select("user_id, score")
-    .order("score", { ascending: false })
-    .limit(500);
+export default function DisplayFlappyPage() {
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const bestMap = new Map<string, number>();
-  for (const s of (allScores ?? []) as { user_id: string; score: number }[]) {
-    if (!bestMap.has(s.user_id) || s.score > bestMap.get(s.user_id)!) {
-      bestMap.set(s.user_id, s.score);
+  async function load() {
+    try {
+      const res = await fetch("/api/display-flappy");
+      if (res.ok) setEntries(await res.json());
+    } finally {
+      setLoading(false);
     }
   }
 
-  type Entry = { user_id: string; display_name: string; best_score: number };
-  const entries: Entry[] = [];
-
-  if (bestMap.size > 0) {
-    const { data: profiles } = await admin
-      .from("profiles")
-      .select("id, display_name")
-      .in("id", Array.from(bestMap.keys()));
-
-    const nameMap = new Map(
-      ((profiles ?? []) as { id: string; display_name: string }[]).map(
-        (p) => [p.id, p.display_name],
-      ),
-    );
-
-    Array.from(bestMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .forEach(([uid, score]) => {
-        entries.push({
-          user_id: uid,
-          display_name: nameMap.get(uid) ?? "Onbekend",
-          best_score: score,
-        });
-      });
-  }
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-knvb-500 flex flex-col">
-      <DisplayRefresh />
-
       <div className="text-center py-8 px-4">
         <div className="text-5xl mb-2">⚽</div>
         <h1 className="text-4xl font-bold text-white tracking-wide">
@@ -73,12 +46,15 @@ export default async function DisplayFlappyPage() {
               </tr>
             </thead>
             <tbody>
-              {entries.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td
-                    colSpan={3}
-                    className="px-6 py-12 text-center text-gray-400"
-                  >
+                  <td colSpan={3} className="px-6 py-12 text-center text-gray-400 animate-pulse">
+                    Laden…
+                  </td>
+                </tr>
+              ) : entries.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-6 py-12 text-center text-gray-400">
                     Nog geen scores
                   </td>
                 </tr>
