@@ -46,7 +46,7 @@ export async function POST() {
   for (const row of upsertData) {
     const credits = row.selectie_punten + row.basis_xi_punten
     if (credits > 0) {
-      sendPushToUser(row.user_id, {
+      sendPushToUser(supabase, row.user_id, {
         title: '⚽ Pre Poule scores bijgewerkt!',
         body: `Jouw score: ${row.totaal} punten · Je hebt ${credits} Flappy Bal credits verdiend`,
         url: '/ranglijst',

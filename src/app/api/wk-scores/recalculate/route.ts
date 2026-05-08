@@ -161,7 +161,7 @@ export async function POST() {
     const wkCredits = row.match_punten > 0
       ? Math.floor(row.match_punten / 2) // rough approximation: 5pt exact = 5c, 2pt result = 2c
       : 0
-    sendPushToUser(row.user_id, {
+    sendPushToUser(supabase, row.user_id, {
       title: '⚽ WK Poule score bijgewerkt!',
       body: `Jouw WK score: ${row.totaal} punten (wedstrijden: ${row.match_punten} · incidenten: ${row.incidents_punten})`,
       url: '/ranglijst',

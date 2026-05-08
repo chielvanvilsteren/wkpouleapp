@@ -23,11 +23,12 @@ export async function POST() {
     process.env.VAPID_PRIVATE_KEY!,
   )
 
-  const { data: subs } = await supabase
+  const { data: subs, error } = await supabase
     .from('push_subscriptions')
     .select('endpoint, subscription')
     .eq('user_id', user.id)
 
+  if (error) return NextResponse.json({ error: error.message })
   if (!subs?.length) {
     return NextResponse.json({ error: 'Geen subscriptions gevonden voor jouw account', userId: user.id })
   }

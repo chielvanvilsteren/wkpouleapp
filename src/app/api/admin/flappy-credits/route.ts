@@ -141,7 +141,7 @@ export async function POST(req: Request) {
 
   // Fire-and-forget push notification
   const noteText = typeof note === 'string' && note.trim() ? ` — ${note.trim()}` : ''
-  sendPushToUser(userId, {
+  sendPushToUser(supabase, userId, {
     title: '⚡ Flappy Bal credits!',
     body: `Je hebt ${amount} credit${amount > 1 ? 's' : ''} ontvangen${noteText}`,
     url: '/',

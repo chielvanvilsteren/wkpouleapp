@@ -13,3 +13,12 @@ CREATE POLICY "push_own"
   ON push_subscriptions FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- Admins can read all subscriptions (needed for server-side push without service role)
+CREATE POLICY "push_admin_read"
+  ON push_subscriptions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true
+    )
+  );
