@@ -12,7 +12,7 @@ function mapToArr(map: Map<string, number>, total: number) {
 export async function GET() {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
   const { data: uitslag } = await admin
