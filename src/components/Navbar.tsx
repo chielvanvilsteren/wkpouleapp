@@ -86,6 +86,7 @@ export default function Navbar({ user, profile }: Props) {
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">
             <NavLink href="/ranglijst">Ranglijst</NavLink>
+            <NavLink href="/stats">Stats</NavLink>
 
             {user && profile?.is_deelnemer !== false && (
               <>
@@ -188,6 +189,9 @@ export default function Navbar({ user, profile }: Props) {
           <div className="md:hidden border-t border-white/10 py-3 space-y-0.5">
             <MobileLink href="/ranglijst" onClick={close}>
               Ranglijst
+            </MobileLink>
+            <MobileLink href="/stats" onClick={close}>
+              Stats
             </MobileLink>
 
             {user && profile?.is_deelnemer !== false && (

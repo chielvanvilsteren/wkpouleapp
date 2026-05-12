@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,8 +12,7 @@ export async function GET() {
   const { data: allScores, error: scoresError } = await admin
     .from("flappy_scores")
     .select("user_id, score")
-    .order("score", { ascending: false })
-    .limit(500);
+    .order("score", { ascending: false });
 
   if (scoresError) {
     return NextResponse.json({ error: scoresError.message }, { status: 500 });

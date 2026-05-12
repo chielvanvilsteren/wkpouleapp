@@ -1,7 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import type { RanglijstEntry, FlappyEntry } from '@/types'
+
+function launchConfetti() {
+  const style = document.createElement('style')
+  style.textContent = `@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1}80%{opacity:1}100%{transform:translateY(105vh) rotate(720deg);opacity:0}}`
+  document.head.appendChild(style)
+
+  const colors = ['#FF6200', '#003082', '#FFD700', '#ffffff', '#FF8C33', '#5782FF']
+  const pieces: HTMLElement[] = []
+  for (let i = 0; i < 110; i++) {
+    const el = document.createElement('div')
+    const size = 6 + Math.random() * 10
+    el.style.cssText = `position:fixed;left:${Math.random()*100}vw;top:-20px;width:${size}px;height:${size*(0.5+Math.random())}px;background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()>0.5?'50%':'2px'};pointer-events:none;z-index:9999;animation:confettiFall ${2.5+Math.random()*3}s ${Math.random()*2.5}s ease-in forwards`
+    document.body.appendChild(el)
+    pieces.push(el)
+  }
+  setTimeout(() => { pieces.forEach(e => e.remove()); style.remove() }, 7000)
+}
 
 type Props = {
   entries: RanglijstEntry[]
@@ -16,6 +34,17 @@ type Tab = 'pre' | 'wk' | 'totaal' | 'flappy'
 
 export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtbaar, flappyEntries }: Props) {
   const [tab, setTab] = useState<Tab>('totaal')
+  const confettiRef = useRef(false)
+
+  useEffect(() => {
+    if (!(scoresZichtbaar || wkScoresZichtbaar)) return
+    const key = 'scoreRevealSeen_v1'
+    if (!confettiRef.current && !localStorage.getItem(key)) {
+      confettiRef.current = true
+      localStorage.setItem(key, '1')
+      launchConfetti()
+    }
+  }, [scoresZichtbaar, wkScoresZichtbaar])
 
   const sorted = tab === 'flappy'
     ? flappyEntries
@@ -146,6 +175,12 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <Link href="/vergelijk" className="text-xs text-gray-400 hover:text-knvb-500 transition-colors">
+          Vergelijk spelers →
+        </Link>
       </div>
     </div>
   )
