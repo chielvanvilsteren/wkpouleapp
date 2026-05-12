@@ -7,17 +7,23 @@ import Link from 'next/link'
 
 // ── Canvas constants ────────────────────────────────────────────────────────
 const W = 800, H = 500
-const PR = 14        // player radius
-const BR = 10        // ball radius
-const GY1 = 185      // goal top y
-const GY2 = 315      // goal bottom y
-const GD = 28        // goal depth (net drawn this many px inside field edge)
-const ACEL = 0.48
-const PFRIC = 0.84
-const BFRIC = 0.982
-const MAXSPD = 5
-const KICK = 11
-const KRANGE = 40
+const PR = 15          // player radius
+const BR = 10          // ball radius
+const GY1 = 190        // goal top y
+const GY2 = 310        // goal bottom y
+const FX = 30          // field left/right boundary x
+const FY = 20          // field top/bottom boundary y
+const POST_R = 5       // goalpost circle radius
+
+// HaxBall-tuned physics
+const ACEL = 0.72
+const PFRIC = 0.96
+const BFRIC = 0.9915
+const MAXSPD = 7
+const KICK = 15
+const KRANGE = 28
+const WALL_REST = 0.92    // wall restitution
+const BALL_REST = 2.0     // ball-player elastic coefficient
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Team = 'blue' | 'red'
@@ -92,6 +98,11 @@ function resetAfterGoal(state: GState, players: LobbyPlayer[], teamSize: number)
 }
 
 // ── Physics ───────────────────────────────────────────────────────────────────
+const POSTS = [
+  { x: FX, y: GY1 }, { x: FX, y: GY2 },
+  { x: W - FX, y: GY1 }, { x: W - FX, y: GY2 },
+]
+
 function step(state: GState, inputs: Record<string, Keys>, players: LobbyPlayer[], maxGoals: number) {
   if (state.phase !== 'playing') return
 
@@ -112,13 +123,14 @@ function step(state: GState, inputs: Record<string, Keys>, players: LobbyPlayer[
     pp.vx *= PFRIC; pp.vy *= PFRIC
     pp.x += pp.vx; pp.y += pp.vy
 
-    const L = 30 + PR, R = W - 30 - PR, T = 20 + PR, B = H - 20 - PR
+    // Field boundary — players stay inside field
+    const L = FX + PR, R = W - FX - PR, T = FY + PR, B = H - FY - PR
     if (pp.x < L) { pp.x = L; pp.vx = Math.abs(pp.vx) * 0.5 }
     if (pp.x > R) { pp.x = R; pp.vx = -Math.abs(pp.vx) * 0.5 }
     if (pp.y < T) { pp.y = T; pp.vy = Math.abs(pp.vy) * 0.5 }
     if (pp.y > B) { pp.y = B; pp.vy = -Math.abs(pp.vy) * 0.5 }
 
-    // Kick
+    // Power kick
     if (k.space) {
       const dx = state.ball.x - pp.x, dy = state.ball.y - pp.y
       const d = Math.hypot(dx, dy)
@@ -129,7 +141,7 @@ function step(state: GState, inputs: Record<string, Keys>, players: LobbyPlayer[
     }
   }
 
-  // Player–player collisions
+  // Player–player elastic collision
   for (let i = 0; i < players.length; i++) {
     for (let j = i + 1; j < players.length; j++) {
       const a = state.players[players[i].sessionId]
@@ -144,8 +156,8 @@ function step(state: GState, inputs: Record<string, Keys>, players: LobbyPlayer[
         b.x += nx * ov; b.y += ny * ov
         const rel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny
         if (rel > 0) {
-          a.vx -= rel * nx * 0.7; a.vy -= rel * ny * 0.7
-          b.vx += rel * nx * 0.7; b.vy += rel * ny * 0.7
+          a.vx -= rel * nx; a.vy -= rel * ny
+          b.vx += rel * nx; b.vy += rel * ny
         }
       }
     }
@@ -156,40 +168,53 @@ function step(state: GState, inputs: Record<string, Keys>, players: LobbyPlayer[
   bl.vx *= BFRIC; bl.vy *= BFRIC
   bl.x += bl.vx; bl.y += bl.vy
 
-  // Top / bottom
-  if (bl.y - BR < 20) { bl.y = 20 + BR; bl.vy = Math.abs(bl.vy) * 0.8 }
-  if (bl.y + BR > H - 20) { bl.y = H - 20 - BR; bl.vy = -Math.abs(bl.vy) * 0.8 }
+  // Top / bottom walls
+  if (bl.y - BR < FY) { bl.y = FY + BR; bl.vy = Math.abs(bl.vy) * WALL_REST }
+  if (bl.y + BR > H - FY) { bl.y = H - FY - BR; bl.vy = -Math.abs(bl.vy) * WALL_REST }
 
-  // Left wall / goal (red scores when ball enters left goal)
-  if (bl.x - BR < 30) {
-    if (bl.y > GY1 && bl.y < GY2) {
-      // Ball past the goal line
-      if (bl.x < 0) {
+  // Left wall — open at goal
+  if (bl.x - BR < FX) {
+    if (bl.y > GY1 + POST_R && bl.y < GY2 - POST_R) {
+      if (bl.x - BR < 0) {
         state.score.red++
         state.phase = state.score.red >= maxGoals ? 'finished' : 'goal_pause'
         state.lastGoal = 'red'
         return
       }
+      // ball is inside goal mouth, let it slide
     } else {
-      bl.x = 30 + BR; bl.vx = Math.abs(bl.vx) * 0.8
+      bl.x = FX + BR; bl.vx = Math.abs(bl.vx) * WALL_REST
     }
   }
 
-  // Right wall / goal (blue scores when ball enters right goal)
-  if (bl.x + BR > W - 30) {
-    if (bl.y > GY1 && bl.y < GY2) {
-      if (bl.x > W) {
+  // Right wall — open at goal
+  if (bl.x + BR > W - FX) {
+    if (bl.y > GY1 + POST_R && bl.y < GY2 - POST_R) {
+      if (bl.x + BR > W) {
         state.score.blue++
         state.phase = state.score.blue >= maxGoals ? 'finished' : 'goal_pause'
         state.lastGoal = 'blue'
         return
       }
     } else {
-      bl.x = W - 30 - BR; bl.vx = -Math.abs(bl.vx) * 0.8
+      bl.x = W - FX - BR; bl.vx = -Math.abs(bl.vx) * WALL_REST
     }
   }
 
-  // Ball–player collisions
+  // Goal post collisions
+  for (const post of POSTS) {
+    const dx = bl.x - post.x, dy = bl.y - post.y
+    const d = Math.hypot(dx, dy)
+    const min = BR + POST_R
+    if (d < min && d > 0) {
+      const nx = dx / d, ny = dy / d
+      bl.x = post.x + nx * min; bl.y = post.y + ny * min
+      const dot = bl.vx * nx + bl.vy * ny
+      if (dot < 0) { bl.vx -= 2 * dot * nx * WALL_REST; bl.vy -= 2 * dot * ny * WALL_REST }
+    }
+  }
+
+  // Ball–player elastic collision
   for (const p of players) {
     const pp = state.players[p.sessionId]
     if (!pp) continue
@@ -201,181 +226,218 @@ function step(state: GState, inputs: Record<string, Keys>, players: LobbyPlayer[
       bl.x = pp.x + nx * min; bl.y = pp.y + ny * min
       const rel = (bl.vx - pp.vx) * nx + (bl.vy - pp.vy) * ny
       if (rel < 0) {
-        bl.vx -= rel * nx * 1.5
-        bl.vy -= rel * ny * 1.5
+        bl.vx -= rel * nx * BALL_REST
+        bl.vy -= rel * ny * BALL_REST
       }
     }
   }
 }
 
-// ── Rendering ─────────────────────────────────────────────────────────────────
+// ── Rendering (HaxBall style) ──────────────────────────────────────────────────
 function draw(ctx: CanvasRenderingContext2D, state: GState, players: LobbyPlayer[], myId: string, cd: number) {
-  // Pitch
-  ctx.fillStyle = '#1a7a1a'
+  // ── Background + field ──────────────────────────────────────────────────────
+  ctx.fillStyle = '#1a1a1a'
   ctx.fillRect(0, 0, W, H)
 
-  // Grass stripes
-  for (let i = 0; i < 8; i++) {
-    if (i % 2 === 0) {
-      ctx.fillStyle = 'rgba(0,0,0,0.06)'
-      ctx.fillRect(i * (W / 8), 0, W / 8, H)
-    }
-  }
+  // Playing field (slightly lighter)
+  ctx.fillStyle = '#222222'
+  ctx.fillRect(FX, FY, W - FX * 2, H - FY * 2)
 
-  // Field markings
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)'
+  // White field lines
+  ctx.strokeStyle = '#ffffff'
   ctx.lineWidth = 2
-  ctx.strokeRect(30, 20, W - 60, H - 40)
-  ctx.beginPath(); ctx.moveTo(W / 2, 20); ctx.lineTo(W / 2, H - 20); ctx.stroke()
-  ctx.beginPath(); ctx.arc(W / 2, H / 2, 55, 0, Math.PI * 2); ctx.stroke()
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'
-  ctx.beginPath(); ctx.arc(W / 2, H / 2, 3, 0, Math.PI * 2); ctx.fill()
-  ctx.strokeRect(30, H / 2 - 88, 100, 176)
-  ctx.strokeRect(W - 130, H / 2 - 88, 100, 176)
-  ctx.strokeRect(30, H / 2 - 48, 50, 96)
-  ctx.strokeRect(W - 80, H / 2 - 48, 50, 96)
 
-  // Goals
-  ctx.fillStyle = 'rgba(255,80,30,0.18)'
-  ctx.fillRect(0, GY1, GD, GY2 - GY1)
-  ctx.fillStyle = 'rgba(30,90,255,0.18)'
-  ctx.fillRect(W - GD, GY1, GD, GY2 - GY1)
-  ctx.strokeStyle = 'white'
-  ctx.lineWidth = 3
-  ctx.strokeRect(0, GY1, GD, GY2 - GY1)
-  ctx.strokeRect(W - GD, GY1, GD, GY2 - GY1)
-  // Goal net lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)'
+  // Field border — draw in segments (skip goal openings)
+  // Top + Bottom
+  ctx.strokeRect(FX, FY, W - FX * 2, H - FY * 2)
+
+  // Overwrite goal openings in left/right border with field color
+  ctx.strokeStyle = '#222222'
+  ctx.lineWidth = 2.5
+  ctx.beginPath(); ctx.moveTo(FX, GY1); ctx.lineTo(FX, GY2); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(W - FX, GY1); ctx.lineTo(W - FX, GY2); ctx.stroke()
+
+  // ── Field markings ──────────────────────────────────────────────────────────
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineWidth = 2
+
+  // Center line
+  ctx.beginPath(); ctx.moveTo(W / 2, FY); ctx.lineTo(W / 2, H - FY); ctx.stroke()
+
+  // Center circle
+  ctx.beginPath(); ctx.arc(W / 2, H / 2, 60, 0, Math.PI * 2); ctx.stroke()
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath(); ctx.arc(W / 2, H / 2, 3, 0, Math.PI * 2); ctx.fill()
+
+  // Corner arcs
+  const CR = 10
+  ctx.beginPath(); ctx.arc(FX, FY, CR, 0, Math.PI / 2); ctx.stroke()
+  ctx.beginPath(); ctx.arc(W - FX, FY, CR, Math.PI / 2, Math.PI); ctx.stroke()
+  ctx.beginPath(); ctx.arc(FX, H - FY, CR, Math.PI * 1.5, Math.PI * 2); ctx.stroke()
+  ctx.beginPath(); ctx.arc(W - FX, H - FY, CR, Math.PI, Math.PI * 1.5); ctx.stroke()
+
+  // ── Goals ───────────────────────────────────────────────────────────────────
+  // Goal nets (left = red side, right = blue side)
+  ctx.fillStyle = 'rgba(220,60,60,0.12)'
+  ctx.fillRect(0, GY1, FX, GY2 - GY1)
+  ctx.fillStyle = 'rgba(60,100,220,0.12)'
+  ctx.fillRect(W - FX, GY1, FX, GY2 - GY1)
+
+  // Net grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'
   ctx.lineWidth = 1
-  for (let y = GY1 + 13; y < GY2; y += 13) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(GD, y); ctx.stroke()
-    ctx.beginPath(); ctx.moveTo(W - GD, y); ctx.lineTo(W, y); ctx.stroke()
+  for (let y = GY1 + 16; y < GY2; y += 16) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(FX, y); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(W - FX, y); ctx.lineTo(W, y); ctx.stroke()
+  }
+  for (let x = 8; x < FX; x += 8) {
+    ctx.beginPath(); ctx.moveTo(x, GY1); ctx.lineTo(x, GY2); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(W - x, GY1); ctx.lineTo(W - x, GY2); ctx.stroke()
   }
 
-  // Scoreboard
-  ctx.fillStyle = 'rgba(0,0,0,0.52)'
-  ctx.beginPath()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(ctx as any).roundRect?.(W / 2 - 64, 5, 128, 42, 8) ?? ctx.rect(W / 2 - 64, 5, 128, 42)
-  ctx.fill()
+  // Goal posts (colored circles — red left, blue right)
+  const drawPost = (x: number, y: number, color: string) => {
+    ctx.fillStyle = color
+    ctx.beginPath(); ctx.arc(x, y, POST_R, 0, Math.PI * 2); ctx.fill()
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+  }
+  drawPost(FX, GY1, '#cc3333')
+  drawPost(FX, GY2, '#cc3333')
+  drawPost(W - FX, GY1, '#3355cc')
+  drawPost(W - FX, GY2, '#3355cc')
 
-  ctx.font = 'bold 28px monospace'
-  ctx.textBaseline = 'top'
-  ctx.fillStyle = '#FF6B33'
-  ctx.textAlign = 'right'
-  ctx.fillText(String(state.score.red), W / 2 - 14, 8)
-  ctx.fillStyle = 'rgba(255,255,255,0.45)'
-  ctx.font = '18px monospace'
+  // ── Scoreboard (HaxBall top bar) ────────────────────────────────────────────
+  ctx.fillStyle = 'rgba(0,0,0,0.75)'
+  ctx.fillRect(W / 2 - 80, 0, 160, 52)
+
+  // Red score (left team)
+  ctx.fillStyle = '#ff4444'
+  ctx.font = 'bold 11px Arial'
   ctx.textAlign = 'center'
-  ctx.fillText('–', W / 2, 13)
-  ctx.fillStyle = '#5588FF'
+  ctx.textBaseline = 'top'
+  ctx.fillText('ROOD', W / 2 - 44, 4)
   ctx.font = 'bold 28px monospace'
-  ctx.textAlign = 'left'
-  ctx.fillText(String(state.score.blue), W / 2 + 14, 8)
+  ctx.fillText(String(state.score.red), W / 2 - 40, 16)
+
+  // Blue score (right team)
+  ctx.fillStyle = '#4488ff'
+  ctx.font = 'bold 11px Arial'
+  ctx.fillText('BLAUW', W / 2 + 44, 4)
+  ctx.font = 'bold 28px monospace'
+  ctx.fillText(String(state.score.blue), W / 2 + 40, 16)
+
+  // Divider + timer
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'
+  ctx.fillRect(W / 2 - 1, 4, 2, 44)
 
   const mins = Math.floor(state.timeLeft / 60)
   const secs = state.timeLeft % 60
-  ctx.fillStyle = 'rgba(255,255,255,0.7)'
-  ctx.font = '11px monospace'
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'
+  ctx.font = 'bold 13px monospace'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
-  ctx.fillText(`${mins}:${String(secs).padStart(2, '0')}`, W / 2, 48)
+  ctx.fillText(`${mins}:${String(secs).padStart(2, '0')}`, W / 2, 50)
 
-  // Players
+  // ── Players ─────────────────────────────────────────────────────────────────
   for (const p of players) {
     const pp = state.players[p.sessionId]
     if (!pp) continue
     const isMe = p.sessionId === myId
-    const col = p.team === 'blue' ? '#1a45aa' : '#bb3300'
-    const bright = p.team === 'blue' ? '#4477ee' : '#ff5522'
+    const teamColor = p.team === 'blue' ? '#4466ee' : '#ee3333'
+    const teamBright = p.team === 'blue' ? '#6688ff' : '#ff5555'
 
-    ctx.fillStyle = 'rgba(0,0,0,0.28)'
-    ctx.beginPath(); ctx.ellipse(pp.x + 2, pp.y + PR * 0.45, PR * 0.85, PR * 0.32, 0, 0, Math.PI * 2); ctx.fill()
+    // Drop shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'
+    ctx.beginPath(); ctx.ellipse(pp.x + 1.5, pp.y + 3, PR * 0.9, PR * 0.35, 0, 0, Math.PI * 2); ctx.fill()
 
+    // Player circle
     const g = ctx.createRadialGradient(pp.x - PR * 0.3, pp.y - PR * 0.35, 0, pp.x, pp.y, PR)
-    g.addColorStop(0, bright)
-    g.addColorStop(1, col)
+    g.addColorStop(0, teamBright)
+    g.addColorStop(1, teamColor)
     ctx.fillStyle = g
     ctx.beginPath(); ctx.arc(pp.x, pp.y, PR, 0, Math.PI * 2); ctx.fill()
 
-    if (isMe) { ctx.strokeStyle = 'white'; ctx.lineWidth = 2.5; ctx.stroke() }
+    // Border — thicker + white for own player
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+    ctx.lineWidth = isMe ? 2.5 : 1.5
+    ctx.stroke()
 
+    // Initial
     ctx.fillStyle = 'rgba(255,255,255,0.92)'
-    ctx.font = `bold ${PR - 1}px Arial`
+    ctx.font = `bold 12px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(p.displayName[0].toUpperCase(), pp.x, pp.y + 0.5)
   }
 
-  // Ball
+  // ── Ball ────────────────────────────────────────────────────────────────────
   const { x: bx, y: by, vx: bvx, vy: bvy } = state.ball
   const bspd = Math.hypot(bvx, bvy)
 
-  if (bspd > 4) {
-    ctx.fillStyle = `rgba(255,255,255,${Math.min(bspd * 0.022, 0.22)})`
-    ctx.beginPath(); ctx.arc(bx - bvx * 1.4, by - bvy * 1.4, BR * 0.6, 0, Math.PI * 2); ctx.fill()
+  // Motion trail
+  if (bspd > 5) {
+    const alpha = Math.min(bspd * 0.018, 0.2)
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`
+    ctx.beginPath(); ctx.arc(bx - bvx * 1.5, by - bvy * 1.5, BR * 0.55, 0, Math.PI * 2); ctx.fill()
   }
 
-  ctx.fillStyle = 'rgba(0,0,0,0.2)'
-  ctx.beginPath(); ctx.ellipse(bx + 1, by + 3, BR, BR * 0.38, 0, 0, Math.PI * 2); ctx.fill()
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'
+  ctx.beginPath(); ctx.ellipse(bx + 1, by + 2.5, BR * 0.95, BR * 0.36, 0, 0, Math.PI * 2); ctx.fill()
 
-  const bg = ctx.createRadialGradient(bx - BR * 0.33, by - BR * 0.33, 0, bx, by, BR)
-  bg.addColorStop(0, '#fff')
-  bg.addColorStop(1, '#ccc')
+  // Ball (HaxBall: clean white circle with 3D gradient)
+  const bg = ctx.createRadialGradient(bx - BR * 0.3, by - BR * 0.35, BR * 0.05, bx, by, BR)
+  bg.addColorStop(0, '#ffffff')
+  bg.addColorStop(0.65, '#dddddd')
+  bg.addColorStop(1, '#999999')
   ctx.fillStyle = bg
   ctx.beginPath(); ctx.arc(bx, by, BR, 0, Math.PI * 2); ctx.fill()
 
-  ctx.fillStyle = '#222'
-  ctx.beginPath(); ctx.arc(bx, by, BR * 0.3, 0, Math.PI * 2); ctx.fill()
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2
-    ctx.beginPath(); ctx.arc(bx + Math.cos(a) * BR * 0.65, by + Math.sin(a) * BR * 0.65, BR * 0.17, 0, Math.PI * 2); ctx.fill()
-  }
-
-  // Overlays
+  // ── Overlays ─────────────────────────────────────────────────────────────────
   if (state.phase === 'countdown' && cd > 0) {
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'
     ctx.fillRect(0, 0, W, H)
-    ctx.fillStyle = 'white'
-    ctx.font = 'bold 130px Arial'
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 120px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(String(cd), W / 2, H / 2)
-    ctx.font = '20px Arial'
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
-    ctx.fillText('Klaar voor de aftrap?', W / 2, H / 2 + 90)
+    ctx.font = '18px Arial'
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.fillText('Klaar voor de aftrap?', W / 2, H / 2 + 80)
   }
 
   if (state.phase === 'goal_pause') {
-    ctx.fillStyle = 'rgba(0,0,0,0.48)'
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'
     ctx.fillRect(0, 0, W, H)
-    const gc = state.lastGoal === 'blue' ? '#5588FF' : '#FF6B33'
-    ctx.fillStyle = gc
-    ctx.font = 'bold 82px Arial'
+    ctx.fillStyle = state.lastGoal === 'blue' ? '#4488ff' : '#ff4444'
+    ctx.font = 'bold 76px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('⚽ GOAL!', W / 2, H / 2 - 22)
-    ctx.font = 'bold 26px Arial'
-    ctx.fillStyle = 'white'
-    ctx.fillText(state.lastGoal === 'blue' ? 'Blauw scoort!' : 'Oranje scoort!', W / 2, H / 2 + 44)
+    ctx.fillText('GOAL!', W / 2, H / 2 - 20)
+    ctx.font = 'bold 24px Arial'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(state.lastGoal === 'blue' ? 'Blauw scoort!' : 'Rood scoort!', W / 2, H / 2 + 42)
   }
 
   if (state.phase === 'finished') {
-    ctx.fillStyle = 'rgba(0,0,0,0.65)'
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'
     ctx.fillRect(0, 0, W, H)
     const { blue: sb, red: sr } = state.score
-    const draw = sb === sr
-    ctx.fillStyle = draw ? 'white' : sb > sr ? '#5588FF' : '#FF6B33'
-    ctx.font = 'bold 58px Arial'
+    const isDraw = sb === sr
+    ctx.fillStyle = isDraw ? '#ffffff' : sb > sr ? '#4488ff' : '#ff4444'
+    ctx.font = 'bold 54px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(draw ? '🤝 Gelijkspel!' : `🏆 ${sb > sr ? 'Blauw' : 'Oranje'} wint!`, W / 2, H / 2 - 28)
-    ctx.font = 'bold 38px monospace'
-    ctx.fillStyle = 'white'
-    ctx.fillText(`${sr}  –  ${sb}`, W / 2, H / 2 + 36)
-    ctx.font = '15px Arial'
-    ctx.fillStyle = 'rgba(255,255,255,0.45)'
-    ctx.fillText('Host drukt R om opnieuw te spelen', W / 2, H / 2 + 84)
+    ctx.fillText(isDraw ? 'Gelijkspel' : `${sb > sr ? 'Blauw' : 'Rood'} wint!`, W / 2, H / 2 - 28)
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 36px monospace'
+    ctx.fillText(`${sr}  –  ${sb}`, W / 2, H / 2 + 34)
+    ctx.font = '14px Arial'
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'
+    ctx.fillText('Host drukt R om opnieuw te spelen', W / 2, H / 2 + 80)
   }
 }
 

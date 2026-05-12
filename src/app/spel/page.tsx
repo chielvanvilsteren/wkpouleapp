@@ -15,16 +15,7 @@ function getSessionId() {
 
 export default function SpelPage() {
   const router = useRouter()
-  const [unlocked, setUnlocked] = useState(false)
   const [mode, setMode] = useState<'pick' | 'create' | 'join'>('pick')
-
-  useEffect(() => {
-    if (!sessionStorage.getItem('spel_unlocked')) {
-      router.replace('/')
-    } else {
-      setUnlocked(true)
-    }
-  }, [router])
   const [name, setName] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [teamSize, setTeamSize] = useState<1 | 2 | 3>(1)
@@ -37,8 +28,6 @@ export default function SpelPage() {
     const saved = localStorage.getItem('spel_display_name')
     if (saved) setName(saved)
   }, [])
-
-  if (!unlocked) return null
 
   async function handleCreate() {
     if (!name.trim()) { setError('Vul een naam in.'); return }

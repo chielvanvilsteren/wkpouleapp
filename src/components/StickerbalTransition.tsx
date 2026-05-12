@@ -34,7 +34,7 @@ export default function StickerbalTransition({ onComplete }: Props) {
     // Lightning bolts
     const bolts: { x: number; y: number; life: number }[] = []
 
-    let speed = 2
+    let speed = 1.5
     let flashTriggered = false
     let rafId: number
     let frame = 0
@@ -90,9 +90,9 @@ export default function StickerbalTransition({ onComplete }: Props) {
         ctx.shadowBlur = 0
       }
 
-      if (speed < 30) speed += 0.15
+      if (speed < 32) speed += 0.1
 
-      if (speed > 20 && !flashTriggered && flashRef.current) {
+      if (speed > 22 && !flashTriggered && flashRef.current) {
         flashRef.current.style.animation = 'stb-flash 1s ease-out forwards'
         flashTriggered = true
       }
@@ -109,7 +109,7 @@ export default function StickerbalTransition({ onComplete }: Props) {
 
   useEffect(() => {
     if (!onComplete) return
-    const t = setTimeout(onComplete, 4500)
+    const t = setTimeout(onComplete, 7000)
     return () => clearTimeout(t)
   }, [onComplete])
 
@@ -167,7 +167,7 @@ export default function StickerbalTransition({ onComplete }: Props) {
           transform: 'translate(-50%, -50%) scale(0.6) rotate(5deg)',
           textAlign: 'center',
           opacity: 0,
-          animation: 'stb-text-in 2s ease-out forwards 2s',
+          animation: 'stb-text-in 2s ease-out forwards 3s',
           width: '90%',
           fontFamily: 'Impact, "Arial Black", sans-serif',
         }}
