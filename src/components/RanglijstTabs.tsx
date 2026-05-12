@@ -4,6 +4,21 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { RanglijstEntry, FlappyEntry } from '@/types'
 
+function useGoldMedalEgg() {
+  const [show, setShow] = useState(false)
+  const clicks = useRef(0)
+  const lastClick = useRef(0)
+
+  const handleClick = () => {
+    const now = Date.now()
+    clicks.current = now - lastClick.current < 700 ? clicks.current + 1 : 1
+    lastClick.current = now
+    if (clicks.current >= 3) { clicks.current = 0; setShow(true) }
+  }
+
+  return { show, dismiss: () => setShow(false), handleClick }
+}
+
 function launchConfetti() {
   const style = document.createElement('style')
   style.textContent = `@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1}80%{opacity:1}100%{transform:translateY(105vh) rotate(720deg);opacity:0}}`
@@ -35,6 +50,7 @@ type Tab = 'pre' | 'wk' | 'totaal' | 'flappy'
 export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtbaar, flappyEntries }: Props) {
   const [tab, setTab] = useState<Tab>('totaal')
   const confettiRef = useRef(false)
+  const egg = useGoldMedalEgg()
 
   useEffect(() => {
     if (!(scoresZichtbaar || wkScoresZichtbaar)) return
@@ -130,7 +146,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                 ? flappyEntries.map((entry, idx) => (
                     <tr key={entry.user_id} className={`border-b border-gray-100 transition-colors ${idx < 3 ? 'bg-oranje-50' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3 text-center font-semibold text-gray-500">
-                        {idx < 3 ? <span className="text-xl">{MEDALS[idx]}</span> : idx + 1}
+                        {idx < 3 ? <span className="text-xl cursor-default select-none" onClick={idx === 0 ? egg.handleClick : undefined}>{MEDALS[idx]}</span> : idx + 1}
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-900">{entry.display_name}</td>
                       <td className="px-4 py-3 text-center">
@@ -141,7 +157,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                 : (sorted as RanglijstEntry[]).map((entry, idx) => (
                     <tr key={entry.user_id} className={`border-b border-gray-100 transition-colors ${idx < 3 && showScores ? 'bg-oranje-50' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3 text-center font-semibold text-gray-500">
-                        {idx < 3 && showScores ? <span className="text-xl">{MEDALS[idx]}</span> : idx + 1}
+                        {idx < 3 && showScores ? <span className="text-xl cursor-default select-none" onClick={idx === 0 ? egg.handleClick : undefined}>{MEDALS[idx]}</span> : idx + 1}
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-900">{entry.display_name}</td>
 
@@ -182,6 +198,26 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
           Vergelijk spelers →
         </Link>
       </div>
+
+      {egg.show && (
+        <div className="fixed bottom-5 right-5 z-50 bg-knvb-700 text-white rounded-2xl shadow-2xl p-5 max-w-xs animate-[slideUp_0.3s_ease]">
+          <p className="text-2xl mb-1">🎮</p>
+          <p className="font-bold text-base mb-1">Geheim spel gevonden!</p>
+          <p className="text-sm text-white/70 mb-4">
+            Denk je dat jij ook kampioen kan worden? Bewijs het!
+          </p>
+          <div className="flex gap-2">
+            <Link href="/spel"
+              className="flex-1 text-center py-2 rounded-xl bg-oranje-500 hover:bg-oranje-600 text-white text-sm font-bold transition-colors">
+              Spelen →
+            </Link>
+            <button onClick={egg.dismiss}
+              className="px-3 py-2 rounded-xl text-white/50 hover:text-white text-sm transition-colors">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

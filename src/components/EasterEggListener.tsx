@@ -7,15 +7,15 @@ import GameTransition from './GameTransition'
 
 const FootballGame = dynamic(() => import('./FootballGame'), { ssr: false })
 
+const FLAPPY_MUSIC =
+  'https://cdn.pixabay.com/download/audio/2023/02/18/audio_2a5bda7587.mp3?filename=luis_humanoide-space-adventures-orchestral-music-star-wars-style-139660.mp3'
+
+type State = 'idle' | 'transitioning' | 'open'
+
 interface Props {
   playerName: string
   opponents: string[]
 }
-
-type State = 'idle' | 'transitioning' | 'open'
-
-const MUSIC_SRC =
-  'https://cdn.pixabay.com/download/audio/2023/02/18/audio_2a5bda7587.mp3?filename=luis_humanoide-space-adventures-orchestral-music-star-wars-style-139660.mp3'
 
 export default function EasterEggListener({ playerName, opponents }: Props) {
   const [state, setState] = useState<State>('idle')
@@ -24,7 +24,7 @@ export default function EasterEggListener({ playerName, opponents }: Props) {
 
   const startMusic = useCallback(() => {
     if (!audioRef.current) {
-      audioRef.current = new Audio(MUSIC_SRC)
+      audioRef.current = new Audio(FLAPPY_MUSIC)
       audioRef.current.loop = true
       audioRef.current.volume = 0.5
     }
@@ -52,7 +52,6 @@ export default function EasterEggListener({ playerName, opponents }: Props) {
     if (state === 'idle') stopMusic()
   }, [state, startMusic, stopMusic])
 
-  // Cleanup on unmount
   useEffect(() => () => stopMusic(), [stopMusic])
 
   return (

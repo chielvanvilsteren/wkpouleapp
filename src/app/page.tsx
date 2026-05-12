@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import RotatingFlag from "@/components/RotatingFlag";
 import CountdownTimer from "@/components/CountdownTimer";
 import EasterEggListener from "@/components/EasterEggListener";
+import StickerbalEggTrigger from "@/components/StickerbalEggTrigger";
 
 export default async function LandingPage() {
   const supabase = await createClient();
@@ -163,7 +164,7 @@ export default async function LandingPage() {
           </div>
 
           <div className="card border-l-4 border-l-knvb-500">
-            <div className="text-2xl mb-2">⚽</div>
+            <div className="text-2xl mb-2"><StickerbalEggTrigger /></div>
             <h3 className="font-bold text-lg text-gray-900 mb-1">WK Poule</h3>
             <p className="text-gray-600 text-sm mb-4">
               Voorspel alle 104 WK-wedstrijden, NL-incidenten en de
