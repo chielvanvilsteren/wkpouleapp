@@ -11,18 +11,17 @@ export async function GET() {
 
   const { data: allScores, error: scoresError } = await admin
     .from("flappy_scores")
-    .select("user_id, score")
+    .select("user_id, score, fps")
     .order("score", { ascending: false });
 
   if (scoresError) {
     return NextResponse.json({ error: scoresError.message }, { status: 500 });
   }
 
-  const bestMap = new Map<string, number>();
-  for (const s of (allScores ?? []) as { user_id: string; score: number }[]) {
-    if (!bestMap.has(s.user_id) || s.score > bestMap.get(s.user_id)!) {
-      bestMap.set(s.user_id, s.score);
-    }
+  const bestMap = new Map<string, { score: number; fps: number | null }>();
+  for (const s of (allScores ?? []) as { user_id: string; score: number; fps: number | null }[]) {
+    const prev = bestMap.get(s.user_id);
+    if (!prev || s.score > prev.score) bestMap.set(s.user_id, { score: s.score, fps: s.fps ?? null });
   }
 
   if (bestMap.size === 0) return NextResponse.json([]);
@@ -44,11 +43,12 @@ export async function GET() {
   );
 
   const result = Array.from(bestMap.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([uid, score]) => ({
+    .sort((a, b) => b[1].score - a[1].score)
+    .map(([uid, { score, fps }]) => ({
       user_id: uid,
       display_name: nameMap.get(uid) ?? "Onbekend",
       best_score: score,
+      best_fps: fps,
     }));
 
   return NextResponse.json(result);

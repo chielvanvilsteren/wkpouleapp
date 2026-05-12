@@ -106,6 +106,17 @@ export type FlappyEntry = {
   user_id: string
   display_name: string
   best_score: number
+  best_fps: number | null
+}
+
+export type StickerbalEntry = {
+  display_name: string
+  games: number
+  wins: number
+  draws: number
+  losses: number
+  goals_for: number
+  goals_against: number
 }
 
 // ─── Ranglijst ───────────────────────────────────────────────

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       team: me.team,
       playerIndex: me.player_index,
       isHost: room.host_id === sessionId,
-      room: { teamSize: room.team_size, maxGoals: room.max_goals, maxMinutes: room.max_minutes },
+      room: { teamSize: room.team_size, maxGoals: room.max_goals, maxMinutes: room.max_minutes, speedMultiplier: Number(room.speed_multiplier) || 1.0, dribblingEnabled: room.dribbling_enabled !== false, powerupsEnabled: room.powerups_enabled === true, testMode: room.test_mode === true },
     })
   }
 
@@ -75,6 +75,6 @@ export async function POST(request: Request) {
     team,
     playerIndex,
     isHost: room.host_id === sessionId,
-    room: { teamSize: room.team_size, maxGoals: room.max_goals, maxMinutes: room.max_minutes },
+    room: { teamSize: room.team_size, maxGoals: room.max_goals, maxMinutes: room.max_minutes, speedMultiplier: Number(room.speed_multiplier) || 1.0, dribblingEnabled: room.dribbling_enabled !== false, powerupsEnabled: room.powerups_enabled === true, testMode: room.test_mode === true },
   })
 }

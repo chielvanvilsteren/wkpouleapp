@@ -14,11 +14,12 @@ export default async function LandingPage() {
   // Fetch other participants for the easter egg game opponents
   let opponents: string[] = []
   let playerName = user?.email ?? "Jij"
+  let isAdmin = false
   if (user) {
     const [{ data: myProfile }, { data: otherProfiles }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("display_name")
+        .select("display_name, is_admin")
         .eq("id", user.id)
         .single(),
       supabase
@@ -28,6 +29,7 @@ export default async function LandingPage() {
         .neq("id", user.id),
     ])
     if (myProfile?.display_name) playerName = myProfile.display_name
+    isAdmin = myProfile?.is_admin ?? false
     opponents = otherProfiles?.map((p) => p.display_name).filter(Boolean) ?? []
   }
 
@@ -37,7 +39,7 @@ export default async function LandingPage() {
       <section className="easter-egg-hero relative overflow-hidden bg-gradient-to-br from-knvb-700 via-knvb-600 to-knvb-500 text-white">
         {/* Interactive plus grid — replaces static SVG; handles easter egg clicks */}
         {user && (
-          <EasterEggListener playerName={playerName} opponents={opponents} />
+          <EasterEggListener playerName={playerName} opponents={opponents} isAdmin={isAdmin} />
         )}
         {/* Static plus grid for logged-out users */}
         {!user && (
@@ -164,7 +166,7 @@ export default async function LandingPage() {
           </div>
 
           <div className="card border-l-4 border-l-knvb-500">
-            <div className="text-2xl mb-2"><StickerbalEggTrigger /></div>
+            <div className="text-2xl mb-2"><StickerbalEggTrigger defaultName={playerName !== user?.email ? playerName : ''} /></div>
             <h3 className="font-bold text-lg text-gray-900 mb-1">WK Poule</h3>
             <p className="text-gray-600 text-sm mb-4">
               Voorspel alle 104 WK-wedstrijden, NL-incidenten en de

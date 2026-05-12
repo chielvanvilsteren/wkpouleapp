@@ -98,6 +98,7 @@ export async function POST(req: Request) {
   if (action === 'save') {
     const sessionId = body?.sessionId as string | undefined
     const score = Number(body?.score)
+    const fps = body?.fps != null ? Math.round(Number(body.fps)) : null
 
     if (!sessionId || !Number.isInteger(score) || score < 0 || score > 9999) {
       return NextResponse.json({ error: 'Ongeldige invoer' }, { status: 400 })
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
 
     const { error: scoreErr } = await supabase
       .from('flappy_scores')
-      .insert({ user_id: user.id, score, credit_log_id: sessionId })
+      .insert({ user_id: user.id, score, credit_log_id: sessionId, fps })
 
     if (scoreErr) {
       if (scoreErr.code === '23505') {

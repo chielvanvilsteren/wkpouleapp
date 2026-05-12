@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import StickerbalNavLink from "./StickerbalNavLink";
 import { logout } from "@/app/auth/actions";
 import type { Profile } from "@/types";
 import WavingFlag from "./WavingFlag";
@@ -88,7 +87,6 @@ export default function Navbar({ user, profile }: Props) {
           <div className="hidden md:flex items-center gap-1">
             <NavLink href="/ranglijst">Ranglijst</NavLink>
             <NavLink href="/stats">Stats</NavLink>
-            <StickerbalNavLink />
 
             {user && profile?.is_deelnemer !== false && (
               <>
@@ -195,7 +193,6 @@ export default function Navbar({ user, profile }: Props) {
             <MobileLink href="/stats" onClick={close}>
               Stats
             </MobileLink>
-            <StickerbalNavLink mobile onNavigate={close} />
 
             {user && profile?.is_deelnemer !== false && (
               <>

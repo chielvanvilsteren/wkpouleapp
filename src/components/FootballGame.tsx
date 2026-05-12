@@ -48,6 +48,7 @@ export interface ScoreEntry {
   id?: number
   myName: string
   score: number
+  fps: number | null
   played_at: string
 }
 
@@ -56,10 +57,11 @@ async function fetchScores(): Promise<ScoreEntry[]> {
   const res = await fetch('/api/flappy-scores')
   if (!res.ok) return []
   const data = await res.json()
-  return (data as Array<{ id: number; score: number; played_at: string; display_name: string | null }>).map((r) => ({
+  return (data as Array<{ id: number; score: number; fps: number | null; played_at: string; display_name: string | null }>).map((r) => ({
     id: r.id,
     myName: r.display_name ?? '???',
     score: r.score,
+    fps: r.fps ?? null,
     played_at: r.played_at,
   }))
 }
@@ -84,12 +86,12 @@ async function startSession(): Promise<{ sessionId: string; newBalance: number }
   } catch { return null }
 }
 
-async function saveScore(sessionId: string, score: number): Promise<void> {
+async function saveScore(sessionId: string, score: number, fps: number | null): Promise<void> {
   try {
     await fetch('/api/flappy-credits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', sessionId, score }),
+      body: JSON.stringify({ action: 'save', sessionId, score, fps }),
     })
   } catch { /* ignore */ }
 }
@@ -395,8 +397,13 @@ function drawHUD(ctx: CanvasRenderingContext2D, score: number, name: string, cre
   ctx.fillText(`⚽ ${score}`, W / 2, midY)
 
   ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right'
-  ctx.fillStyle = credits <= 2 ? '#ff6666' : '#ffa040'
-  ctx.fillText(`⚡ ${credits}`, W - 16, midY)
+  if (credits === -1) {
+    ctx.fillStyle = '#88ff88'
+    ctx.fillText('🔧 TEST', W - 16, midY)
+  } else {
+    ctx.fillStyle = credits <= 2 ? '#ff6666' : '#ffa040'
+    ctx.fillText(`⚡ ${credits}`, W - 16, midY)
+  }
 
   // Level indicator
   const { level } = getDifficulty(score)
@@ -422,11 +429,13 @@ export default function FootballGame({
   playerName,
   onClose: onCloseRaw,
   onGameStart,
+  isAdmin,
 }: {
   playerName: string
   opponents?: string[]
   onClose: () => void
   onGameStart?: () => void
+  isAdmin?: boolean
 }) {
   const onClose = () => {
     try { (screen as unknown as { orientation?: { unlock(): void } }).orientation?.unlock() } catch { /* ignore */ }
@@ -448,6 +457,8 @@ export default function FootballGame({
   const [starting, setStarting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [credits, setCredits] = useState<number | null>(null)
+  const [testMode, setTestMode] = useState(false)
+  const gameFpsRef = useRef<number | null>(null)
   const [creditBreakdown, setCreditBreakdown] = useState({ preCredits: 0, wkCredits: 0 })
 
   const flap = useCallback(() => {
@@ -507,7 +518,19 @@ export default function FootballGame({
     canvas.addEventListener('touchstart', touchHandler, { passive: false })
     window.addEventListener('keydown', keyHandler)
 
+    let fpsFrameCount = 0
+    let fpsLastTime = performance.now()
+
     function loop() {
+      // FPS measurement
+      fpsFrameCount++
+      const now = performance.now()
+      if (now - fpsLastTime >= 1000) {
+        gameFpsRef.current = Math.round((fpsFrameCount / (now - fpsLastTime)) * 1000)
+        fpsFrameCount = 0
+        fpsLastTime = now
+      }
+
       const gs = gsRef.current!
 
       if (started && !gs.dead) {
@@ -543,7 +566,7 @@ export default function FootballGame({
         if (hit(gs.ballY, gs.pipes)) {
           gs.dead = true
           setFinalScore(gs.score)
-          deathTimer = setTimeout(() => setScreen('saveprompt'), 950)
+          deathTimer = setTimeout(() => setScreen(testMode ? 'gameover' : 'saveprompt'), 950)
         }
 
         gs.tick++
@@ -554,7 +577,7 @@ export default function FootballGame({
       drawBG(ctx, gs.tick)
       for (const p of gs.pipes) drawPipe(ctx, p)
       drawBall(ctx, gs.ballY, started ? gs.ballVY : 0, playerName, gs.dead)
-      drawHUD(ctx, gs.score, playerName, creditsRef.current, gs.levelFlash)
+      drawHUD(ctx, gs.score, playerName, testMode ? -1 : creditsRef.current, gs.levelFlash)
       if (!started) drawGetReady(ctx, window.innerWidth < 768)
 
       // Level-up flash overlay
@@ -662,7 +685,7 @@ export default function FootballGame({
               )}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap justify-center">
               <button
                 disabled={credits === null || credits <= 0 || starting}
                 onClick={async () => {
@@ -672,6 +695,7 @@ export default function FootballGame({
                   if (!result) return
                   sessionIdRef.current = result.sessionId
                   setCredits(result.newBalance)
+                  setTestMode(false)
                   onGameStart?.()
                   setScreen('playing')
                 }}
@@ -685,6 +709,20 @@ export default function FootballGame({
                 🏆 Scores
               </button>
             </div>
+
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  sessionIdRef.current = null
+                  setTestMode(true)
+                  onGameStart?.()
+                  setScreen('playing')
+                }}
+                className="flex items-center gap-2 text-white/40 hover:text-white/70 text-xs font-medium transition-colors mt-1"
+              >
+                🔧 Test spelen (geen credit, score niet opgeslagen)
+              </button>
+            )}
           </div>
         )}
 
@@ -706,7 +744,7 @@ export default function FootballGame({
                 onClick={async () => {
                   if (!sessionIdRef.current) { setScreen('gameover'); return }
                   setSaving(true)
-                  await saveScore(sessionIdRef.current, finalScore)
+                  await saveScore(sessionIdRef.current, finalScore, gameFpsRef.current)
                   setSaving(false)
                   setScreen('gameover')
                 }}
@@ -727,6 +765,7 @@ export default function FootballGame({
 
         {screen === 'gameover' && (
           <div className="flex flex-col items-center gap-5 px-8 py-10 text-white">
+            {testMode && <span className="text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/30 px-3 py-1 rounded-full">🔧 Testmodus — score niet opgeslagen</span>}
             <div className="text-6xl">{finalScore >= 15 ? '🏆' : finalScore >= 7 ? '👍' : '😢'}</div>
             <h2 className="text-2xl font-black">Game Over!</h2>
             <div className="text-center">
@@ -756,6 +795,7 @@ export default function FootballGame({
                     <th className="pb-2 font-medium pr-2">#</th>
                     <th className="pb-2 font-medium pr-3">Naam</th>
                     <th className="pb-2 font-medium text-center px-2">Score</th>
+                    <th className="pb-2 font-medium text-center px-2 text-white/40">FPS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -764,6 +804,9 @@ export default function FootballGame({
                       <td className="py-2 text-white/30 pr-2 font-bold">{i + 1}</td>
                       <td className={`py-2 font-medium pr-3 ${e.myName === playerName ? 'text-orange-400' : 'text-white/80'}`}>{e.myName}</td>
                       <td className="py-2 text-center px-2 font-black text-xl text-white">{e.score}</td>
+                      <td className={`py-2 text-center px-2 text-xs font-mono ${e.fps != null && e.fps < 50 ? 'text-red-400' : 'text-white/30'}`}>
+                        {e.fps != null ? `${e.fps}` : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

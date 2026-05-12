@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import type { RanglijstEntry, FlappyEntry } from '@/types'
+import type { RanglijstEntry, FlappyEntry, StickerbalEntry } from '@/types'
 
 function useGoldMedalEgg() {
   const [show, setShow] = useState(false)
@@ -41,13 +41,14 @@ type Props = {
   scoresZichtbaar: boolean
   wkScoresZichtbaar: boolean
   flappyEntries: FlappyEntry[]
+  stickerbalEntries: StickerbalEntry[]
 }
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
-type Tab = 'pre' | 'wk' | 'totaal' | 'flappy'
+type Tab = 'pre' | 'wk' | 'totaal' | 'flappy' | 'stickerbal'
 
-export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtbaar, flappyEntries }: Props) {
+export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtbaar, flappyEntries, stickerbalEntries }: Props) {
   const [tab, setTab] = useState<Tab>('totaal')
   const confettiRef = useRef(false)
   const egg = useGoldMedalEgg()
@@ -64,6 +65,8 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
 
   const sorted = tab === 'flappy'
     ? flappyEntries
+    : tab === 'stickerbal'
+    ? stickerbalEntries
     : [...entries].sort((a, b) => {
         const getVal = (e: RanglijstEntry) => {
           if (tab === 'pre') return e.pre_totaal ?? 0
@@ -82,7 +85,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
     <div>
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit flex-wrap">
-        {(['totaal', 'pre', 'wk', 'flappy'] as Tab[]).map((t) => (
+        {(['totaal', 'pre', 'wk', 'flappy', 'stickerbal'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -90,7 +93,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
               tab === t ? 'bg-white text-knvb-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'totaal' ? 'Gecombineerd' : t === 'pre' ? 'Pre-pool' : t === 'wk' ? 'WK Poule' : '⚽ Flappy Bal'}
+            {t === 'totaal' ? 'Gecombineerd' : t === 'pre' ? 'Pre-pool' : t === 'wk' ? 'WK Poule' : t === 'flappy' ? '⚽ Flappy Bal' : '🎮 Stickerbal'}
           </button>
         ))}
       </div>
@@ -105,6 +108,9 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
 
       {tab === 'flappy' && flappyEntries.length === 0 && (
         <p className="text-center text-sm text-gray-400 mb-4">Nog geen scores gespeeld.</p>
+      )}
+      {tab === 'stickerbal' && stickerbalEntries.length === 0 && (
+        <p className="text-center text-sm text-gray-400 mb-4">Nog geen potjes gespeeld.</p>
       )}
 
       <div className="card p-0 overflow-hidden">
@@ -138,11 +144,37 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                   </>
                 )}
                 {tab !== 'flappy' && !showScores && <th className="px-4 py-3 text-center">Score</th>}
-                {tab === 'flappy' && <th className="px-4 py-3 text-center font-bold">Beste score</th>}
+                {tab === 'flappy' && <><th className="px-4 py-3 text-center font-bold">Beste score</th><th className="px-4 py-3 text-center text-gray-400 font-normal text-sm">FPS</th></>}
+                {tab === 'stickerbal' && <>
+                  <th className="px-4 py-3 text-center">Gespeeld</th>
+                  <th className="px-4 py-3 text-center text-green-600">W</th>
+                  <th className="px-4 py-3 text-center text-yellow-500">G</th>
+                  <th className="px-4 py-3 text-center text-red-500">V</th>
+                  <th className="px-4 py-3 text-center font-bold">Win%</th>
+                </>}
               </tr>
             </thead>
             <tbody>
-              {tab === 'flappy'
+              {tab === 'stickerbal'
+                ? stickerbalEntries.map((entry, idx) => {
+                    const winPct = entry.games > 0 ? Math.round((entry.wins / entry.games) * 100) : 0
+                    return (
+                      <tr key={entry.display_name} className={`border-b border-gray-100 transition-colors ${idx < 3 ? 'bg-oranje-50' : 'hover:bg-gray-50'}`}>
+                        <td className="px-4 py-3 text-center font-semibold text-gray-500">
+                          {idx < 3 ? <span className="text-xl">{MEDALS[idx]}</span> : idx + 1}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{entry.display_name}</td>
+                        <td className="px-4 py-3 text-center text-gray-600">{entry.games}</td>
+                        <td className="px-4 py-3 text-center font-bold text-green-600">{entry.wins}</td>
+                        <td className="px-4 py-3 text-center text-yellow-600">{entry.draws}</td>
+                        <td className="px-4 py-3 text-center text-red-500">{entry.losses}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`font-black text-lg ${winPct >= 60 ? 'text-oranje-600' : winPct >= 40 ? 'text-knvb-500' : 'text-gray-400'}`}>{winPct}%</span>
+                        </td>
+                      </tr>
+                    )
+                  })
+                : tab === 'flappy'
                 ? flappyEntries.map((entry, idx) => (
                     <tr key={entry.user_id} className={`border-b border-gray-100 transition-colors ${idx < 3 ? 'bg-oranje-50' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3 text-center font-semibold text-gray-500">
@@ -151,6 +183,11 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                       <td className="px-4 py-3 font-medium text-gray-900">{entry.display_name}</td>
                       <td className="px-4 py-3 text-center">
                         <span className="font-black text-oranje-600 text-lg">{entry.best_score}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {entry.best_fps != null
+                          ? <span className={`text-xs font-mono ${entry.best_fps < 50 ? 'text-red-400' : 'text-gray-400'}`}>{entry.best_fps}</span>
+                          : <span className="text-gray-300 text-xs">—</span>}
                       </td>
                     </tr>
                   ))

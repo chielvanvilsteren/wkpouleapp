@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
-type Entry = { user_id: string; display_name: string; best_score: number };
+type Entry = { user_id: string; display_name: string; best_score: number; best_fps: number | null };
 
 interface Ball {
   x: number; y: number; vx: number; vy: number;
@@ -140,13 +140,14 @@ export default function DisplayFlappyPage() {
                   <th className="px-6 py-4 text-left w-16 text-lg">#</th>
                   <th className="px-6 py-4 text-left text-lg">Naam</th>
                   <th className="px-6 py-4 text-right text-lg font-bold">Score</th>
+                  <th className="px-4 py-4 text-right text-sm font-normal text-white/60">FPS</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-400 animate-pulse">Laden…</td></tr>
+                  <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400 animate-pulse">Laden…</td></tr>
                 ) : entries.length === 0 ? (
-                  <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-400">Nog geen scores</td></tr>
+                  <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">Nog geen scores</td></tr>
                 ) : entries.map((entry, idx) => (
                   <tr key={entry.user_id} className={`border-b border-gray-100 ${idx%2===0?"bg-white":"bg-gray-50"} ${idx<3?"bg-oranje-50":""}`}>
                     <td className="px-6 py-4 text-center font-bold text-gray-400 text-xl">
@@ -155,6 +156,11 @@ export default function DisplayFlappyPage() {
                     <td className="px-6 py-4 font-semibold text-gray-900 text-xl">{entry.display_name}</td>
                     <td className="px-6 py-4 text-right">
                       <span className="font-black text-oranje-600 text-3xl">{entry.best_score}</span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      {entry.best_fps != null
+                        ? <span className={`text-sm font-mono ${entry.best_fps < 50 ? 'text-red-400' : 'text-gray-400'}`}>{entry.best_fps}</span>
+                        : <span className="text-gray-300 text-sm">—</span>}
                     </td>
                   </tr>
                 ))}

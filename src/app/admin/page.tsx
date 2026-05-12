@@ -7,6 +7,7 @@ import AdminMatchResults from "@/components/AdminMatchResults";
 import AdminSyncLogs from "@/components/AdminSyncLogs";
 import AdminTabsLayout from "@/components/AdminTabsLayout";
 import AdminFlappyCredits from "@/components/AdminFlappyCredits";
+import AdminStickerbalSettings from "@/components/AdminStickerbalSettings";
 import AdminRecalcWkScores from "@/components/AdminRecalcWkScores";
 import PageHeader from "@/components/PageHeader";
 import type {
@@ -134,7 +135,7 @@ export default async function AdminPage() {
         <AdminTabsLayout
           tabs={[
             { key: "beheer", label: "Beheer" },
-            { key: "credits", label: "⚡ Flappy Credits" },
+            { key: "credits", label: "🎮 Game instellingen" },
             { key: "berichten", label: "Berichten", badge: errorLogs },
           ]}
         >
@@ -257,13 +258,19 @@ export default async function AdminPage() {
             </div>
           </div>
 
-          {/* Tab: Flappy Credits */}
-          <div className="card">
-            <h2 className="section-title">⚡ Flappy Bal Credits</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Overzicht van alle credits per deelnemer. Je kunt handmatig credits toekennen.
-            </p>
-            <AdminFlappyCredits />
+          {/* Tab: Game instellingen (Stickerbal + Flappy Credits) */}
+          <div className="grid gap-6">
+            <div className="card">
+              <h2 className="section-title">⚽ Stickerbal — Spelsnelheid</h2>
+              <AdminStickerbalSettings currentSpeed={Number((uitslag as (typeof uitslag & { stickerbal_speed?: number }) | null)?.stickerbal_speed) || 1.0} />
+            </div>
+            <div className="card">
+              <h2 className="section-title">⚡ Flappy Bal Credits</h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Overzicht van alle credits per deelnemer. Je kunt handmatig credits toekennen.
+              </p>
+              <AdminFlappyCredits />
+            </div>
           </div>
 
           {/* Tab: Berichten */}

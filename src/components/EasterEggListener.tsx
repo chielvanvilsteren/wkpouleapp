@@ -15,9 +15,10 @@ type State = 'idle' | 'transitioning' | 'open'
 interface Props {
   playerName: string
   opponents: string[]
+  isAdmin?: boolean
 }
 
-export default function EasterEggListener({ playerName, opponents }: Props) {
+export default function EasterEggListener({ playerName, opponents, isAdmin }: Props) {
   const [state, setState] = useState<State>('idle')
   const [muted, setMuted] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -95,6 +96,7 @@ export default function EasterEggListener({ playerName, opponents }: Props) {
           opponents={opponents}
           onClose={() => setState('idle')}
           onGameStart={stopMusic}
+          isAdmin={isAdmin}
         />
       )}
     </>

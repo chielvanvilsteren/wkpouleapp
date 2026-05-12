@@ -9,7 +9,7 @@ function randomCode() {
 }
 
 export async function POST(request: Request) {
-  const { displayName, teamSize, maxGoals, maxMinutes, sessionId } = await request.json()
+  const { displayName, teamSize, maxGoals, maxMinutes, sessionId, dribblingEnabled, powerupsEnabled, testMode } = await request.json()
 
   if (!displayName?.trim() || !sessionId) {
     return NextResponse.json({ error: 'Naam en sessie vereist.' }, { status: 400 })
@@ -27,6 +27,9 @@ export async function POST(request: Request) {
     code = randomCode()
   }
 
+  const { data: uitslag } = await db.from('master_uitslag').select('stickerbal_speed').eq('id', 1).maybeSingle()
+  const speedMultiplier = Number(uitslag?.stickerbal_speed) || 1.0
+
   const { error: roomErr } = await db.from('game_rooms').insert({
     code,
     host_id: sessionId,
@@ -34,6 +37,10 @@ export async function POST(request: Request) {
     max_goals: Number(maxGoals) || 5,
     max_minutes: Number(maxMinutes) || 3,
     status: 'waiting',
+    speed_multiplier: speedMultiplier,
+    dribbling_enabled: dribblingEnabled !== false,
+    powerups_enabled: powerupsEnabled === true,
+    test_mode: testMode === true,
   })
   if (roomErr) return NextResponse.json({ error: roomErr.message }, { status: 500 })
 
@@ -46,5 +53,5 @@ export async function POST(request: Request) {
   })
   if (playerErr) return NextResponse.json({ error: playerErr.message }, { status: 500 })
 
-  return NextResponse.json({ code, team: 'blue', playerIndex: 0, isHost: true })
+  return NextResponse.json({ code, team: 'blue', playerIndex: 0, isHost: true, speedMultiplier })
 }

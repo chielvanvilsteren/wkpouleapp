@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data: scores, error } = await supabase
     .from('flappy_scores')
-    .select('id, score, played_at, user_id')
+    .select('id, score, fps, played_at, user_id')
     .order('score', { ascending: false })
     .order('played_at', { ascending: true })
     .limit(30)

@@ -1,0 +1,1 @@
+ALTER TABLE game_rooms ADD COLUMN IF NOT EXISTS dribbling_enabled BOOLEAN NOT NULL DEFAULT true;

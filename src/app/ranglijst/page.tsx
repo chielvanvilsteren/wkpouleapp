@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import RanglijstTabs from '@/components/RanglijstTabs'
 import PageHeader from '@/components/PageHeader'
-import type { Profile, Score, WkScore, RanglijstEntry, FlappyEntry } from '@/types'
+import type { Profile, Score, WkScore, RanglijstEntry, FlappyEntry, StickerbalEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,21 +47,44 @@ export default async function RanglijstPage() {
   // Flappy scores — best per user
   const { data: flappyRaw } = await supabase
     .from('flappy_scores')
-    .select('user_id, score')
+    .select('user_id, score, fps')
 
-  const bestFlappy = new Map<string, number>()
+  const bestFlappy = new Map<string, { score: number; fps: number | null }>()
   for (const row of (flappyRaw ?? [])) {
-    const prev = bestFlappy.get(row.user_id) ?? 0
-    if (row.score > prev) bestFlappy.set(row.user_id, row.score)
+    const prev = bestFlappy.get(row.user_id)
+    if (!prev || row.score > prev.score) {
+      bestFlappy.set(row.user_id, { score: row.score, fps: row.fps ?? null })
+    }
   }
 
   const flappyEntries: FlappyEntry[] = Array.from(bestFlappy.entries())
-    .map(([user_id, best_score]) => ({
+    .map(([user_id, { score, fps }]) => ({
       user_id,
       display_name: profiles.find((p) => p.id === user_id)?.display_name ?? '???',
-      best_score,
+      best_score: score,
+      best_fps: fps,
     }))
     .sort((a, b) => b.best_score - a.best_score)
+
+  // Stickerbal results — aggregated by display_name, excluding bots/test
+  const { data: stickerbalRaw } = await supabase
+    .from('stickerbal_results')
+    .select('display_name, result, goals_for, goals_against')
+
+  const stickerbalMap = new Map<string, StickerbalEntry>()
+  for (const r of (stickerbalRaw ?? []) as { display_name: string; result: string; goals_for: number; goals_against: number }[]) {
+    const key = r.display_name.toLowerCase()
+    const e = stickerbalMap.get(key) ?? { display_name: r.display_name, games: 0, wins: 0, draws: 0, losses: 0, goals_for: 0, goals_against: 0 }
+    e.games++
+    if (r.result === 'win') e.wins++
+    else if (r.result === 'draw') e.draws++
+    else e.losses++
+    e.goals_for += r.goals_for ?? 0
+    e.goals_against += r.goals_against ?? 0
+    stickerbalMap.set(key, e)
+  }
+  const stickerbalEntries: StickerbalEntry[] = Array.from(stickerbalMap.values())
+    .sort((a, b) => b.wins - a.wins || b.draws - a.draws || b.goals_for - a.goals_for)
 
   const entries: RanglijstEntry[] = profiles.map((p) => {
     const pre = preScores.get(p.id)
@@ -95,6 +118,7 @@ export default async function RanglijstPage() {
           scoresZichtbaar={scoresZichtbaar}
           wkScoresZichtbaar={wkScoresZichtbaar}
           flappyEntries={flappyEntries}
+          stickerbalEntries={stickerbalEntries}
         />
       </div>
     </>

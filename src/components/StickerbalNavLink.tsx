@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import StickerbalTransition from './StickerbalTransition'
 
@@ -13,12 +13,27 @@ export default function StickerbalNavLink({ mobile, onNavigate }: { mobile?: boo
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const active = pathname === '/spel' || pathname.startsWith('/spel/')
 
+  // Stop music on unmount
+  useEffect(() => () => {
+    audioRef.current?.pause()
+    audioRef.current = null
+  }, [])
+
+  // Hide transition + stop music when /spel has loaded
+  useEffect(() => {
+    if (transitioning && (pathname === '/spel' || pathname.startsWith('/spel/'))) {
+      audioRef.current?.pause()
+      audioRef.current = null
+      setTransitioning(false)
+    }
+  }, [pathname, transitioning])
+
   function handleClick() {
     onNavigate?.()
-    if (active) return // already on /spel, no transition needed
+    if (active) return
 
     const audio = new Audio(MUSIC_SRC)
-    audio.loop = true
+    audio.loop = false
     audio.volume = 0.5
     audio.play().catch(() => {})
     audioRef.current = audio
@@ -44,12 +59,7 @@ export default function StickerbalNavLink({ mobile, onNavigate }: { mobile?: boo
 
       {transitioning && (
         <StickerbalTransition
-          onComplete={() => {
-            audioRef.current?.pause()
-            audioRef.current = null
-            router.push('/spel')
-            setTransitioning(false)
-          }}
+          onComplete={() => router.push('/spel')}
         />
       )}
     </>
