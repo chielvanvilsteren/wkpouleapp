@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import PageHeader from '@/components/PageHeader'
 import Link from 'next/link'
 
-type Stat = { name: string; count: number; pct: number }
+type Stat = { name: string; count: number; pct: number; pickers?: string[] }
 
 interface StatsData {
   pre_locked: boolean
@@ -31,16 +31,26 @@ interface StatsData {
 function Bar({ stat, isOfficial, maxCount }: { stat: Stat; isOfficial: boolean; maxCount: number }) {
   const width = maxCount > 0 ? Math.round((stat.count / maxCount) * 100) : 0
   return (
-    <div className="flex items-center gap-3 py-1">
+    <div className="flex items-center gap-3 py-1 group/bar relative">
       <div className="w-44 text-sm text-right text-gray-700 truncate shrink-0">
         {stat.name}
         {isOfficial && <span className="ml-1 text-xs text-green-600 font-bold">✓</span>}
       </div>
-      <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full ${isOfficial ? 'bg-oranje-500' : 'bg-knvb-300'}`}
-          style={{ width: `${width}%` }}
-        />
+      <div className="flex-1 relative">
+        <div className="h-5 bg-gray-100 rounded-full overflow-hidden cursor-default">
+          <div
+            className={`h-full rounded-full ${isOfficial ? 'bg-oranje-500' : 'bg-knvb-300'}`}
+            style={{ width: `${width}%` }}
+          />
+        </div>
+        {stat.pickers && stat.pickers.length > 0 && (
+          <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/bar:block z-10 pointer-events-none">
+            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+              {stat.pickers.join(' · ')}
+              <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
+            </div>
+          </div>
+        )}
       </div>
       <div className="w-20 text-right text-sm shrink-0">
         <span className="font-semibold text-gray-700">{stat.pct}%</span>
@@ -58,10 +68,20 @@ function WkCard({ title, items, total }: { title: string; items: Stat[]; total: 
       <h3 className="font-bold text-gray-800 mb-3">{title}</h3>
       <p className="text-xs text-gray-400 mb-3">{total} inzendingen</p>
       {items.slice(0, 12).map(item => (
-        <div key={item.name} className="flex items-center gap-3 py-1">
+        <div key={item.name} className="flex items-center gap-3 py-1 group/wk relative">
           <div className="w-44 text-sm text-right text-gray-700 truncate shrink-0">{item.name}</div>
-          <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-knvb-400 rounded-full" style={{ width: `${max > 0 ? Math.round((item.count / max) * 100) : 0}%` }} />
+          <div className="flex-1 relative">
+            <div className="h-4 bg-gray-100 rounded-full overflow-hidden cursor-default">
+              <div className="h-full bg-knvb-400 rounded-full" style={{ width: `${max > 0 ? Math.round((item.count / max) * 100) : 0}%` }} />
+            </div>
+            {item.pickers && item.pickers.length > 0 && (
+              <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/wk:block z-10 pointer-events-none">
+                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                  {item.pickers.join(' · ')}
+                  <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
+                </div>
+              </div>
+            )}
           </div>
           <div className="w-20 text-right text-sm shrink-0">
             <span className="font-semibold text-gray-700">{item.pct}%</span>

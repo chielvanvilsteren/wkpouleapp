@@ -3,9 +3,14 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-function mapToArr(map: Map<string, number>, total: number) {
-  return Array.from(map.entries())
-    .map(([name, count]) => ({ name, count, pct: total > 0 ? Math.round((count / total) * 100) : 0 }))
+function mapToArr(countMap: Map<string, number>, pickersMap: Map<string, string[]>, total: number) {
+  return Array.from(countMap.entries())
+    .map(([name, count]) => ({
+      name,
+      count,
+      pct: total > 0 ? Math.round((count / total) * 100) : 0,
+      pickers: pickersMap.get(name) ?? [],
+    }))
     .sort((a, b) => b.count - a.count)
 }
 
@@ -43,45 +48,61 @@ export async function GET() {
   if (!preOpen) {
     const { data: predictions } = await admin
       .from('predictions')
-      .select('selectie, basis_xi')
+      .select('user_id, selectie, basis_xi')
       .eq('is_definitief', true)
 
     const total = predictions?.length ?? 0
     result.total_pre = total
 
+    const nameMap = new Map((profiles ?? []).map(p => [p.id as string, p.display_name as string]))
+
     const selectieCount = new Map<string, number>()
+    const selectiePickers = new Map<string, string[]>()
     const basisXiCount = new Map<string, number>()
+    const basisXiPickers = new Map<string, string[]>()
 
     for (const pred of predictions ?? []) {
-      for (const p of (pred.selectie as string[] ?? [])) selectieCount.set(p, (selectieCount.get(p) ?? 0) + 1)
-      for (const p of (pred.basis_xi as string[] ?? [])) basisXiCount.set(p, (basisXiCount.get(p) ?? 0) + 1)
+      const displayName = nameMap.get(pred.user_id as string) ?? '?'
+      for (const p of (pred.selectie as string[] ?? [])) {
+        selectieCount.set(p, (selectieCount.get(p) ?? 0) + 1)
+        selectiePickers.set(p, [...(selectiePickers.get(p) ?? []), displayName])
+      }
+      for (const p of (pred.basis_xi as string[] ?? [])) {
+        basisXiCount.set(p, (basisXiCount.get(p) ?? 0) + 1)
+        basisXiPickers.set(p, [...(basisXiPickers.get(p) ?? []), displayName])
+      }
     }
 
-    result.selectie = mapToArr(selectieCount, total)
-    result.basis_xi = mapToArr(basisXiCount, total)
+    result.selectie = mapToArr(selectieCount, selectiePickers, total)
+    result.basis_xi = mapToArr(basisXiCount, basisXiPickers, total)
   }
 
   if (!wkOpen) {
     const { data: incidents } = await admin
       .from('wk_incidents_predictions')
-      .select('wereldkampioen, topscorer_wk, rode_kaart, gele_kaart, geblesseerde, eerste_goal_nl')
+      .select('user_id, wereldkampioen, topscorer_wk, rode_kaart, gele_kaart, geblesseerde, eerste_goal_nl')
       .eq('is_definitief', true)
 
     const total = incidents?.length ?? 0
     result.total_wk = total
 
+    const nameMap = new Map((profiles ?? []).map(p => [p.id as string, p.display_name as string]))
+
     const agg: Record<string, Map<string, number>> = {
-      wereldkampioen: new Map(),
-      topscorer: new Map(),
-      rode_kaart: new Map(),
-      gele_kaart: new Map(),
-      geblesseerde: new Map(),
-      eerste_goal_nl: new Map(),
+      wereldkampioen: new Map(), topscorer: new Map(), rode_kaart: new Map(),
+      gele_kaart: new Map(), geblesseerde: new Map(), eerste_goal_nl: new Map(),
+    }
+    const aggPickers: Record<string, Map<string, string[]>> = {
+      wereldkampioen: new Map(), topscorer: new Map(), rode_kaart: new Map(),
+      gele_kaart: new Map(), geblesseerde: new Map(), eerste_goal_nl: new Map(),
     }
 
     for (const inc of incidents ?? []) {
+      const displayName = nameMap.get(inc.user_id as string) ?? '?'
       const add = (key: string, val: string | null | undefined) => {
-        if (val) agg[key].set(val, (agg[key].get(val) ?? 0) + 1)
+        if (!val) return
+        agg[key].set(val, (agg[key].get(val) ?? 0) + 1)
+        aggPickers[key].set(val, [...(aggPickers[key].get(val) ?? []), displayName])
       }
       add('wereldkampioen', inc.wereldkampioen)
       add('topscorer', inc.topscorer_wk)
@@ -92,7 +113,7 @@ export async function GET() {
     }
 
     result.wk = Object.fromEntries(
-      Object.entries(agg).map(([k, v]) => [k, mapToArr(v, total)])
+      Object.entries(agg).map(([k, v]) => [k, mapToArr(v, aggPickers[k], total)])
     )
   }
 
