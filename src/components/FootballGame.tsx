@@ -794,32 +794,34 @@ export default function FootballGame({
         )}
 
         {screen === 'menu' && (
-          <div className="flex flex-col items-center gap-5 px-8 py-10 text-white">
-            <div className="text-6xl animate-bounce">⚽</div>
-            <h2 className="text-3xl font-black tracking-tight">Flappy Bal!</h2>
-            <p className="text-white/60 text-sm text-center max-w-xs">
+          <div className="flex flex-col items-center gap-3 px-6 py-4 text-white h-full overflow-y-auto justify-center min-h-0">
+            <div className="text-5xl animate-bounce">⚽</div>
+            <h2 className="text-2xl font-black tracking-tight">Flappy Bal!</h2>
+            <p className="text-white/60 text-xs text-center max-w-xs hidden sm:block">
               Jij speelt als <span className="text-orange-400 font-bold">{playerName}</span>.
-              Druk <kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white/90">SPATIE</kbd> of klik om de bal omhoog te sturen. Ontwijkt de palen!
+              Druk <kbd className="bg-white/10 px-1 py-0.5 rounded text-white/90">SPATIE</kbd> of tik om te spelen.
             </p>
 
             {/* Credits display */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-center w-full max-w-xs">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <span className="text-2xl">⚡</span>
+            <div className="bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-center w-full max-w-xs">
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">⚡</span>
                 {credits === null ? (
-                  <span className="text-white/40 animate-pulse">Laden…</span>
+                  <span className="text-white/40 animate-pulse text-sm">Laden…</span>
                 ) : (
-                  <span className={`text-3xl font-black ${credits === 0 ? 'text-red-400' : 'text-orange-400'}`}>{credits}</span>
+                  <span className={`text-2xl font-black ${credits === 0 ? 'text-red-400' : 'text-orange-400'}`}>{credits}</span>
                 )}
                 <span className="text-white/50 text-sm">credits</span>
               </div>
-              <div className="flex justify-center gap-4 text-xs text-white/35 mt-1">
+              <div className="flex justify-center gap-3 text-xs text-white/35 mt-1">
+                <span>{playerName}</span>
+                <span>·</span>
                 <span>Selectie: {creditBreakdown.preCredits}</span>
                 <span>·</span>
                 <span>Uitslagen: {creditBreakdown.wkCredits}</span>
               </div>
               {credits === 0 && (
-                <p className="text-red-400/80 text-xs mt-2">Voorspel juist om credits te verdienen</p>
+                <p className="text-red-400/80 text-xs mt-1">Voorspel juist om credits te verdienen</p>
               )}
             </div>
 
@@ -837,12 +839,12 @@ export default function FootballGame({
                   onGameStart?.()
                   setScreen('playing')
                 }}
-                className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black px-10 py-3.5 rounded-xl text-lg shadow-lg shadow-orange-900/40 transition-colors"
+                className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black px-8 py-3 rounded-xl text-base shadow-lg shadow-orange-900/40 transition-colors"
               >
                 {starting ? 'Laden…' : credits === 0 ? '⚡ Geen credits' : 'Spelen! ⚽'}
               </button>
               <button onClick={async () => { setScoresLoading(true); setScreen('scoreboard'); const h = await fetchScores(); setHistory(h); setScoresLoading(false) }}
-                className="bg-white/10 hover:bg-white/20 text-white/80 font-semibold px-6 py-3.5 rounded-xl transition-colors"
+                className="bg-white/10 hover:bg-white/20 text-white/80 font-semibold px-5 py-3 rounded-xl transition-colors"
               >
                 🏆 Scores
               </button>
@@ -856,7 +858,7 @@ export default function FootballGame({
                   onGameStart?.()
                   setScreen('playing')
                 }}
-                className="flex items-center gap-2 text-white/40 hover:text-white/70 text-xs font-medium transition-colors mt-1"
+                className="flex items-center gap-2 text-white/40 hover:text-white/70 text-xs font-medium transition-colors"
               >
                 🔧 Test spelen (geen credit, score niet opgeslagen)
               </button>
@@ -865,12 +867,12 @@ export default function FootballGame({
         )}
 
         {screen === 'saveprompt' && (
-          <div className="flex flex-col items-center gap-5 px-8 py-10 text-white">
-            <div className="text-6xl">{finalScore >= 15 ? '🏆' : finalScore >= 7 ? '👍' : '😢'}</div>
-            <h2 className="text-2xl font-black">Game Over!</h2>
+          <div className="flex flex-col items-center gap-3 px-6 py-4 text-white h-full overflow-y-auto justify-center min-h-0">
+            <div className="text-5xl">{finalScore >= 15 ? '🏆' : finalScore >= 7 ? '👍' : '😢'}</div>
+            <h2 className="text-xl font-black">Game Over!</h2>
             <div className="text-center">
-              <div className="text-white/50 text-sm mb-1">Score</div>
-              <div className="text-7xl font-black text-orange-400">{finalScore}</div>
+              <div className="text-white/50 text-xs mb-0.5">Score</div>
+              <div className="text-6xl font-black text-orange-400">{finalScore}</div>
             </div>
             <div className="bg-white/5 rounded-xl px-5 py-2 text-center">
               <p className="text-white/60 text-sm">Wil je je score opslaan?</p>
@@ -902,19 +904,19 @@ export default function FootballGame({
         )}
 
         {screen === 'gameover' && (
-          <div className="flex flex-col items-center gap-5 px-8 py-10 text-white">
+          <div className="flex flex-col items-center gap-3 px-6 py-4 text-white h-full overflow-y-auto justify-center min-h-0">
             {testMode && <span className="text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/30 px-3 py-1 rounded-full">🔧 Testmodus — score niet opgeslagen</span>}
-            <div className="text-6xl">{finalScore >= 15 ? '🏆' : finalScore >= 7 ? '👍' : '😢'}</div>
-            <h2 className="text-2xl font-black">Game Over!</h2>
+            <div className="text-5xl">{finalScore >= 15 ? '🏆' : finalScore >= 7 ? '👍' : '😢'}</div>
+            <h2 className="text-xl font-black">Game Over!</h2>
             <div className="text-center">
-              <div className="text-white/50 text-sm mb-1">Score</div>
-              <div className="text-7xl font-black text-orange-400">{finalScore}</div>
+              <div className="text-white/50 text-xs mb-0.5">Score</div>
+              <div className="text-6xl font-black text-orange-400">{finalScore}</div>
             </div>
 
-            <div className="flex gap-3">
-              <button onClick={() => setScreen('menu')} className="bg-orange-500 hover:bg-orange-400 text-white font-black px-8 py-3 rounded-xl transition-colors">Opnieuw</button>
-              <button onClick={async () => { setScoresLoading(true); setScreen('scoreboard'); const h = await fetchScores(); setHistory(h); setScoresLoading(false) }} className="bg-white/10 hover:bg-white/20 text-white/80 font-semibold px-6 py-3 rounded-xl transition-colors">🏆 Scores</button>
-              <button onClick={onClose} className="bg-white/5 hover:bg-white/10 text-white/40 font-semibold px-5 py-3 rounded-xl transition-colors">Sluiten</button>
+            <div className="flex gap-3 flex-wrap justify-center">
+              <button onClick={() => setScreen('menu')} className="bg-orange-500 hover:bg-orange-400 text-white font-black px-7 py-3 rounded-xl transition-colors">Opnieuw</button>
+              <button onClick={async () => { setScoresLoading(true); setScreen('scoreboard'); const h = await fetchScores(); setHistory(h); setScoresLoading(false) }} className="bg-white/10 hover:bg-white/20 text-white/80 font-semibold px-5 py-3 rounded-xl transition-colors">🏆 Scores</button>
+              <button onClick={onClose} className="bg-white/5 hover:bg-white/10 text-white/40 font-semibold px-4 py-3 rounded-xl transition-colors">Sluiten</button>
             </div>
           </div>
         )}
