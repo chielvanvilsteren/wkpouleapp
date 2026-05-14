@@ -2,6 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+// ─── Background image (loaded once, shared across game instances)
+let _bgImg: HTMLImageElement | null = null
+function ensureBG() {
+  if (_bgImg || typeof window === 'undefined') return
+  _bgImg = new Image()
+  _bgImg.src = '/deventer-bg.png'
+}
+
 // ─── Canvas ───────────────────────────────────────────────────
 const W = 800
 const H = 440
@@ -126,32 +134,148 @@ function hit(ballY: number, pipes: Pipe[]): boolean {
   return false
 }
 
+// ─── Deventer skyline — traced from city silhouette ───────────
+// ─── Deventer waterfront skyline (traced from photo) ──────────
+function drawDeventerSkyline(ctx: CanvasRenderingContext2D) {
+  const gy  = GROUND_Y
+  const col = '#0c1e35'   // slightly lighter than pure black → reads as silhouette
+
+  const f = (path: () => void) => {
+    ctx.fillStyle = col; ctx.beginPath(); path(); ctx.closePath(); ctx.fill()
+  }
+  const r = (x: number, y: number, w: number, h: number) => {
+    ctx.fillStyle = col; ctx.fillRect(x, y, w, h)
+  }
+
+  // ── Kade / quay base — continuous waterfront strip ────────────
+  r(0, gy - 18, W, 18)
+
+  // ── Canal house helper — body + gable ─────────────────────────
+  // gable: 0=pitched  1=step  2=bell  3=neck
+  function house(x: number, w: number, h: number, gable: number) {
+    r(x, gy - h, w, h)
+    const mx = x + w / 2
+    if (gable === 0) {  // pitched
+      f(() => { ctx.moveTo(x - 1, gy - h); ctx.lineTo(mx, gy - h - w * 0.38); ctx.lineTo(x + w + 1, gy - h) })
+    } else if (gable === 1) {  // step gable (trapgevel)
+      const s = w * 0.18
+      f(() => {
+        ctx.moveTo(x, gy - h); ctx.lineTo(x, gy - h - s)
+        ctx.lineTo(x + s, gy - h - s); ctx.lineTo(x + s, gy - h - s * 2)
+        ctx.lineTo(mx, gy - h - s * 2); ctx.lineTo(mx, gy - h - s * 3.2)
+        ctx.lineTo(mx + s, gy - h - s * 2.2); ctx.lineTo(x + w - s, gy - h - s * 2)
+        ctx.lineTo(x + w - s, gy - h - s); ctx.lineTo(x + w, gy - h - s)
+        ctx.lineTo(x + w, gy - h)
+      })
+    } else if (gable === 2) {  // bell gable (klokgevel)
+      f(() => {
+        ctx.moveTo(x, gy - h)
+        ctx.bezierCurveTo(x, gy - h - w * 0.4, mx - w * 0.12, gy - h - w * 0.55, mx, gy - h - w * 0.6)
+        ctx.bezierCurveTo(mx + w * 0.12, gy - h - w * 0.55, x + w, gy - h - w * 0.4, x + w, gy - h)
+      })
+    } else {  // neck gable (halsgevel)
+      const nw = w * 0.35
+      f(() => {
+        ctx.moveTo(x, gy - h); ctx.lineTo(x, gy - h - 4)
+        ctx.bezierCurveTo(x, gy - h - w * 0.25, mx - nw / 2, gy - h - w * 0.3, mx - nw / 2, gy - h - w * 0.35)
+        ctx.lineTo(mx - nw / 2, gy - h - w * 0.55); ctx.lineTo(mx, gy - h - w * 0.65)
+        ctx.lineTo(mx + nw / 2, gy - h - w * 0.55); ctx.lineTo(mx + nw / 2, gy - h - w * 0.35)
+        ctx.bezierCurveTo(mx + nw / 2, gy - h - w * 0.3, x + w, gy - h - w * 0.25, x + w, gy - h - 4)
+        ctx.lineTo(x + w, gy - h)
+      })
+    }
+  }
+
+  // ── Left waterfront (x=0..290) ────────────────────────────────
+  // ~14 houses, heights & gable styles traced from photo
+  const left: [number, number, number, number][] = [
+    [  0, 22, 36, 0], [ 22, 20, 32, 1], [ 42, 18, 38, 0],
+    [ 60, 22, 34, 2], [ 82, 20, 30, 0], [102, 24, 42, 3],
+    [126, 20, 36, 1], [146, 22, 32, 0], [168, 20, 38, 2],
+    [188, 24, 44, 0], [212, 20, 34, 1], [232, 22, 40, 3],
+    [254, 20, 36, 0], [274, 18, 32, 2],
+  ]
+  for (const [x, w, h, g] of left) house(x, w, h, g)
+
+  // ── Lebuïnuskerk ── cx=390 ───────────────────────────────────
+  // Dominant tower: wide nave, square lower tower, octagonal belfry, dome
+  const tx = 390
+
+  // Church nave (wide base)
+  r(tx - 58, gy - 54, 116, 54)
+  // Side chapels / buttresses
+  r(tx - 70, gy - 36, 14, 36); r(tx + 56, gy - 36, 14, 36)
+  // Small spire left of tower (visible in photo)
+  r(tx - 26, gy - 76,  8, 76); r(tx - 23, gy - 80, 2, 8)
+  f(() => { ctx.moveTo(tx - 24, gy - 80); ctx.lineTo(tx - 22, gy - 90); ctx.lineTo(tx - 20, gy - 80) })
+
+  // Tower — square lower section
+  r(tx - 18, gy - 110, 36, 110)
+  // Cornice at first-stage transition
+  r(tx - 21, gy - 110, 42,  5)
+  // Tower — octagonal mid section (slight taper via clipping illusion)
+  r(tx - 14, gy - 138, 28, 28)
+  r(tx - 16, gy - 138, 32,  5)  // cornice
+  // Belfry openings implied by window strips
+  r(tx - 12, gy - 132, 24,  3); r(tx - 12, gy - 122, 24, 3)
+  // Dome / lantern cap (the distinctive element)
+  f(() => {
+    ctx.moveTo(tx - 13, gy - 142)
+    ctx.bezierCurveTo(tx - 13, gy - 156, tx + 13, gy - 156, tx + 13, gy - 142)
+    ctx.lineTo(tx + 13, gy - 138); ctx.lineTo(tx - 13, gy - 138)
+  })
+  // Lantern
+  r(tx -  5, gy - 158,  10, 10)
+  r(tx -  3, gy - 160,   6,  4)
+  // Spire / weather vane
+  f(() => { ctx.moveTo(tx - 2, gy - 160); ctx.lineTo(tx, gy - 170); ctx.lineTo(tx + 2, gy - 160) })
+
+  // ── Right waterfront (x=295..800) ─────────────────────────────
+  const right: [number, number, number, number][] = [
+    [295, 22, 40, 0], [317, 20, 36, 2], [337, 24, 44, 1],
+    [361, 20, 38, 0], [381, 22, 42, 3], // houses flanking church right
+    [468, 20, 40, 0], [488, 24, 46, 1], [512, 22, 38, 2],
+    [534, 20, 42, 0], [554, 24, 50, 3], [578, 22, 44, 1],
+    [600, 20, 40, 2], [620, 24, 36, 0], [644, 22, 42, 1],
+    [666, 20, 38, 3], [686, 24, 44, 0], [710, 22, 38, 2],
+    [732, 20, 34, 0], [752, 24, 40, 1], [776, 22, 36, 3],
+  ]
+  for (const [x, w, h, g] of right) house(x, w, h, g)
+
+  // ── Lamp posts along kade (warm glow dots) ────────────────────
+  ctx.save()
+  for (const lx of [32, 80, 132, 184, 236, 310, 460, 520, 580, 640, 700, 756]) {
+    r(lx - 1, gy - 30, 2, 30)  // post
+    const grd = ctx.createRadialGradient(lx, gy - 32, 0, lx, gy - 32, 18)
+    grd.addColorStop(0, 'rgba(255,200,80,0.35)')
+    grd.addColorStop(1, 'rgba(255,200,80,0)')
+    ctx.fillStyle = grd; ctx.fillRect(lx - 18, gy - 50, 36, 36)
+  }
+  ctx.restore()
+}
+
 // ─── Draw background ──────────────────────────────────────────
 function drawBG(ctx: CanvasRenderingContext2D, tick: number) {
+  // Blue-hour sky — matches Deventer waterfront photo mood
   const sky = ctx.createLinearGradient(0, CEIL, 0, GROUND_Y)
-  sky.addColorStop(0, '#08172e')
-  sky.addColorStop(0.65, '#163966')
-  sky.addColorStop(1, '#1b508a')
+  sky.addColorStop(0,    '#0e1a2e')
+  sky.addColorStop(0.45, '#1a3a6a')
+  sky.addColorStop(0.82, '#2a5a9a')
+  sky.addColorStop(1,    '#3a6aaa')
   ctx.fillStyle = sky
   ctx.fillRect(0, CEIL, W, GROUND_Y - CEIL)
 
-  // Stars
-  ctx.fillStyle = 'rgba(255,255,255,0.75)'
-  const sx = [55,115,190,305,435,555,645,745,385,90,470,720]
-  const sy = [50,40,65,48,58,42,68,50,56,75,82,62]
+  // Stars (sparse — blue hour, not full night)
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'
+  const sx = [55, 190, 305, 555, 645, 745, 90, 470]
+  const sy = [50,  65,  50,  44,  68,  52, 75,  82]
   for (let i = 0; i < sx.length; i++) {
-    const x = ((sx[i] - tick * 0.28) % W + W) % W
-    ctx.beginPath(); ctx.arc(x, sy[i], 1.3, 0, Math.PI * 2); ctx.fill()
+    const x = ((sx[i] - tick * 0.22) % W + W) % W
+    ctx.beginPath(); ctx.arc(x, sy[i], 1.1, 0, Math.PI * 2); ctx.fill()
   }
 
-  // Stadium glow lights
-  for (const lx of [70, W - 70]) {
-    const lg = ctx.createRadialGradient(lx, CEIL + 16, 0, lx, CEIL + 16, 140)
-    lg.addColorStop(0, 'rgba(255,245,180,0.2)')
-    lg.addColorStop(1, 'rgba(255,245,180,0)')
-    ctx.fillStyle = lg
-    ctx.fillRect(lx - 140, CEIL, 280, 200)
-  }
+  // Deventer waterfront skyline
+  drawDeventerSkyline(ctx)
 
   // Crowd
   ctx.fillStyle = '#0c2244'
@@ -461,6 +585,17 @@ export default function FootballGame({
   const gameFpsRef = useRef<number | null>(null)
   const [creditBreakdown, setCreditBreakdown] = useState({ preCredits: 0, wkCredits: 0 })
 
+  const [viewport, setViewport] = useState(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth  : W,
+    h: typeof window !== 'undefined' ? window.innerHeight : H,
+  }))
+  useEffect(() => {
+    const upd = () => setViewport({ w: window.innerWidth, h: window.innerHeight })
+    window.addEventListener('resize', upd)
+    window.addEventListener('orientationchange', upd)
+    return () => { window.removeEventListener('resize', upd); window.removeEventListener('orientationchange', upd) }
+  }, [])
+
   const flap = useCallback(() => {
     const gs = gsRef.current
     if (!gs || gs.dead) return
@@ -572,6 +707,10 @@ export default function FootballGame({
         gs.tick++
       }
 
+      // Expose state for autopilot
+      ;(window as unknown as Record<string, unknown>).__flappyGS = gs
+      ;(window as unknown as Record<string, unknown>).__flappyCanvas = canvas
+
       // Render
       ctx.clearRect(0, 0, W, H)
       drawBG(ctx, gs.tick)
@@ -610,12 +749,11 @@ export default function FootballGame({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen])
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-
-  // Mobile: scale canvas to fill full screen height, anchor top-left so ball stays visible
-  const mobileScale = isMobile
-    ? typeof window !== 'undefined' ? window.innerHeight / H : 1
-    : 1
+  // Scale canvas to fit any screen size / orientation
+  const isMobile  = viewport.w < 1024
+  const gameScale = isMobile
+    ? Math.min(viewport.w / W, viewport.h / H)
+    : Math.min(1, (viewport.w - 32) / W)
 
   return (
     <div
@@ -625,8 +763,8 @@ export default function FootballGame({
       <div
         className="relative bg-gray-950 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)]"
         style={{
-          width: isMobile ? window.innerWidth : Math.min(W, window.innerWidth - 16),
-          height: isMobile ? window.innerHeight : 'auto',
+          width:  isMobile ? viewport.w : Math.min(W, viewport.w - 32),
+          height: isMobile ? viewport.h : 'auto',
           borderRadius: isMobile ? 0 : 16,
           border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
         }}
@@ -642,12 +780,12 @@ export default function FootballGame({
             className="block cursor-pointer select-none"
             style={isMobile ? {
               position: 'absolute',
-              top: 0,
-              left: 0,
+              top: '50%',
+              left: '50%',
               width: W,
               height: H,
-              transform: `scale(${mobileScale})`,
-              transformOrigin: 'top left',
+              transform: `translate(-50%, -50%) scale(${gameScale})`,
+              transformOrigin: 'center',
             } : {
               width: '100%',
               aspectRatio: `${W}/${H}`,
