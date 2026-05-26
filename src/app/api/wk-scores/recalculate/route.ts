@@ -23,11 +23,13 @@ export async function POST() {
     { data: allPredictions },
     { data: wkUitslag },
     { data: wkIncidents },
+    { data: masterUitslag },
   ] = await Promise.all([
     admin.from('matches').select('*').eq('is_finished', true),
     admin.from('match_predictions').select('*'),
     admin.from('wk_incidents_uitslag').select('*').eq('id', 1).single(),
     admin.from('wk_incidents_predictions').select('*'),
+    admin.from('master_uitslag').select('wk_scores_zichtbaar').eq('id', 1).single(),
   ])
 
   if (!finishedMatches || !allPredictions || !wkIncidents) {
@@ -74,7 +76,11 @@ export async function POST() {
     let topscorerPts = 0
     let toernooiPts = 0
 
-    if (wkUitslag) {
+    // Incidents/topscorer/toernooi alleen scoren als admin wk_scores_zichtbaar heeft gezet.
+    // Zo worden lege uitslag-velden niet als "niemand" geteld zolang het WK nog niet gescoord is.
+    const uitslag_definitief = masterUitslag?.wk_scores_zichtbaar ?? false
+
+    if (wkUitslag && uitslag_definitief) {
       // rode_kaart: 30 correct player, 10 if both empty
       if (normalize(wkUitslag.rode_kaart) === '') {
         if (normalize(inc.rode_kaart) === '') incidentsPts += 10

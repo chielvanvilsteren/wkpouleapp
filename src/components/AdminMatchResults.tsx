@@ -18,6 +18,14 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 export default function AdminMatchResults({ matches }: Props) {
+  const countries = Array.from(
+    new Set(
+      matches
+        .filter((m) => m.stage === "group")
+        .flatMap((m) => [m.home_team, m.away_team]),
+    ),
+  ).sort((a, b) => a.localeCompare(b, "nl"));
+
   const [results, setResults] = useState<
     Map<number, { home: number | null; away: number | null; live: boolean; finished: boolean }>
   >(
@@ -99,7 +107,10 @@ export default function AdminMatchResults({ matches }: Props) {
           away_score: r.away,
           is_live: r.live,
           is_finished: r.finished,
-          ...(names ? { home_team: names.home, away_team: names.away } : {}),
+          // Alleen opslaan als beide teamnamen niet leeg zijn
+          ...(names?.home && names?.away
+            ? { home_team: names.home, away_team: names.away }
+            : {}),
         })
         .eq("id", id);
       if (error) {
@@ -173,13 +184,20 @@ export default function AdminMatchResults({ matches }: Props) {
                           {match.home_team}
                         </span>
                       ) : (
-                        <input
-                          type="text"
-                          value={teamNames.get(match.id)?.home ?? match.home_team}
+                        <select
+                          value={teamNames.get(match.id)?.home ?? ""}
                           onChange={(e) => setTeamName(match.id, "home", e.target.value)}
                           className="flex-1 text-sm text-right input-field px-2 py-1 min-w-0"
-                          placeholder="Land"
-                        />
+                        >
+                          <option value="">— Kies land —</option>
+                          {(() => {
+                            const cur = teamNames.get(match.id)?.home ?? "";
+                            const extra = cur && !countries.includes(cur) ? [cur] : [];
+                            return [...extra, ...countries].map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ));
+                          })()}
+                        </select>
                       )}
                       <div className="flex items-center gap-1 shrink-0">
                         <input
@@ -211,13 +229,20 @@ export default function AdminMatchResults({ matches }: Props) {
                           {match.away_team}
                         </span>
                       ) : (
-                        <input
-                          type="text"
-                          value={teamNames.get(match.id)?.away ?? match.away_team}
+                        <select
+                          value={teamNames.get(match.id)?.away ?? ""}
                           onChange={(e) => setTeamName(match.id, "away", e.target.value)}
                           className="flex-1 text-sm text-left input-field px-2 py-1 min-w-0"
-                          placeholder="Land"
-                        />
+                        >
+                          <option value="">— Kies land —</option>
+                          {(() => {
+                            const cur = teamNames.get(match.id)?.away ?? "";
+                            const extra = cur && !countries.includes(cur) ? [cur] : [];
+                            return [...extra, ...countries].map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ));
+                          })()}
+                        </select>
                       )}
                       <button
                         onClick={() => cycleStatus(match.id)}
