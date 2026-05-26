@@ -71,40 +71,40 @@ const entries: RanglijstEntry[] = [
 ]
 
 const flappyEntries: FlappyEntry[] = [
-  { user_id: 'u1', display_name: 'Alice', best_score: 42 },
-  { user_id: 'u2', display_name: 'Bob', best_score: 35 },
-  { user_id: 'u3', display_name: 'Charlie', best_score: 28 },
-  { user_id: 'u4', display_name: 'Dana', best_score: 10 },
+  { user_id: 'u1', display_name: 'Alice', best_score: 42, best_fps: null },
+  { user_id: 'u2', display_name: 'Bob', best_score: 35, best_fps: null },
+  { user_id: 'u3', display_name: 'Charlie', best_score: 28, best_fps: null },
+  { user_id: 'u4', display_name: 'Dana', best_score: 10, best_fps: null },
 ]
 
 describe('RanglijstTabs', () => {
   it('default tab is "totaal" (Gecombineerd is active)', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     const gecombineerdBtn = screen.getByRole('button', { name: 'Gecombineerd' })
     expect(gecombineerdBtn).toHaveClass('bg-white')
   })
 
   it('clicking Pre-pool switches tab', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Pre-pool' }))
     expect(screen.getByRole('button', { name: 'Pre-pool' })).toHaveClass('bg-white')
   })
 
   it('clicking WK Poule switches tab', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'WK Poule' }))
     expect(screen.getByRole('button', { name: 'WK Poule' })).toHaveClass('bg-white')
   })
 
   it('clicking Gecombineerd switches back', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Pre-pool' }))
     fireEvent.click(screen.getByRole('button', { name: 'Gecombineerd' }))
     expect(screen.getByRole('button', { name: 'Gecombineerd' })).toHaveClass('bg-white')
   })
 
   it('sorts entries by totaal descending', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     const rows = screen.getAllByRole('row')
     // Skip header row; first data row should be Charlie (totaal=94)
     expect(rows[1]).toHaveTextContent('Charlie')
@@ -115,40 +115,40 @@ describe('RanglijstTabs', () => {
       { ...entries[0], display_name: 'Zara', totaal: 50 },
       { ...entries[1], display_name: 'Abel', totaal: 50, user_id: 'u99' },
     ]
-    render(<RanglijstTabs entries={tied} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={tied} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     const rows = screen.getAllByRole('row')
     expect(rows[1]).toHaveTextContent('Abel')
     expect(rows[2]).toHaveTextContent('Zara')
   })
 
   it('shows medals for top 3 when showScores=true in totaal tab', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     expect(screen.getByText('🥇')).toBeInTheDocument()
     expect(screen.getByText('🥈')).toBeInTheDocument()
     expect(screen.getByText('🥉')).toBeInTheDocument()
   })
 
   it('shows numbers (not medals) when showScores=false', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar={false} wkScoresZichtbaar={false} flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar={false} wkScoresZichtbaar={false} flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     expect(screen.queryByText('🥇')).not.toBeInTheDocument()
     // Numbers are shown instead
     expect(screen.getByText('1')).toBeInTheDocument()
   })
 
   it('shows "Scores worden zichtbaar" message when not visible in totaal', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar={false} wkScoresZichtbaar={false} flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar={false} wkScoresZichtbaar={false} flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     expect(screen.getByText(/Scores worden zichtbaar/)).toBeInTheDocument()
   })
 
   it('shows Selectie and Basis XI column headers in pre tab when scores visible', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Pre-pool' }))
     expect(screen.getByText('Selectie')).toBeInTheDocument()
     expect(screen.getByText('Basis XI')).toBeInTheDocument()
   })
 
   it('shows Wedstr./Incidents/Topscorer columns in wk tab when scores visible', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'WK Poule' }))
     expect(screen.getByText('Wedstr.')).toBeInTheDocument()
     expect(screen.getByText('Incidents')).toBeInTheDocument()
@@ -156,7 +156,7 @@ describe('RanglijstTabs', () => {
   })
 
   it('shows Pre-pool and WK Poule columns in totaal tab', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     // There should be at least one "Pre-pool" text (tab button + column header)
     expect(screen.getAllByText('Pre-pool').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('WK Poule').length).toBeGreaterThanOrEqual(1)
@@ -168,20 +168,20 @@ describe('RanglijstTabs', () => {
   })
 
   it('shows message when pre scores not visible', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar={false} wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar={false} wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Pre-pool' }))
     expect(screen.getByText(/Pre-pool scores worden zichtbaar/)).toBeInTheDocument()
   })
 
   it('shows message when wk scores not visible', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar={false} flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar={false} flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'WK Poule' }))
     expect(screen.getByText(/WK Poule scores worden zichtbaar/)).toBeInTheDocument()
   })
 
   it('pre tab sorting uses pre_totaal ?? 0 for null values', () => {
     const nullEntries = entries.map((e) => ({ ...e, pre_totaal: null }))
-    render(<RanglijstTabs entries={nullEntries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={nullEntries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Pre-pool' }))
     // All pre_totaal null → sorted alphabetically
     const rows = screen.getAllByRole('row')
@@ -190,7 +190,7 @@ describe('RanglijstTabs', () => {
 
   it('wk tab sorting uses wk_totaal ?? 0 for null values', () => {
     const nullEntries = entries.map((e) => ({ ...e, wk_totaal: null }))
-    render(<RanglijstTabs entries={nullEntries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={nullEntries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'WK Poule' }))
     const rows = screen.getAllByRole('row')
     expect(rows.length).toBeGreaterThan(1)
@@ -198,26 +198,26 @@ describe('RanglijstTabs', () => {
 
   it('shows — for null selectie_punten in pre tab', () => {
     const nullScores = entries.map((e) => ({ ...e, selectie_punten: null, basis_xi_punten: null, pre_totaal: null }))
-    render(<RanglijstTabs entries={nullScores} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={nullScores} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Pre-pool' }))
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 
   it('shows — for null incidents_punten in wk tab', () => {
     const nullScores = entries.map((e) => ({ ...e, incidents_punten: null, match_punten: null, topscorer_punten: null, wk_totaal: null }))
-    render(<RanglijstTabs entries={nullScores} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={nullScores} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'WK Poule' }))
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 
   it('shows — for null wk_totaal in totaal tab', () => {
     const nullScores = entries.map((e) => ({ ...e, wk_totaal: null, totaal: null }))
-    render(<RanglijstTabs entries={nullScores} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={nullScores} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 
   it('clicking Flappy Bal tab shows flappy leaderboard with scores', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: /Flappy Bal/ }))
     // Flappy tab shows best scores
     expect(screen.getByText('42')).toBeInTheDocument()
@@ -228,13 +228,13 @@ describe('RanglijstTabs', () => {
   })
 
   it('Flappy tab shows "Nog geen scores" message when flappyEntries is empty', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={[]} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={[]} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: /Flappy Bal/ }))
     expect(screen.getByText(/Nog geen scores gespeeld/)).toBeInTheDocument()
   })
 
   it('Flappy tab renders entries beyond top 3 with numeric position', () => {
-    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} />)
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: /Flappy Bal/ }))
     // Entry at index 3 (Dana) should show position "4"
     expect(screen.getByText('4')).toBeInTheDocument()

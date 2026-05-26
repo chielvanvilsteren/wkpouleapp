@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 type UserCredits = {
   id: string;
   display_name: string;
-  preCredits: number;
   wkCredits: number;
   adminGrants: number;
   spent: number;
@@ -75,7 +74,6 @@ export default function AdminFlappyCredits() {
         <thead>
           <tr className="border-b border-gray-200 text-gray-600 font-medium">
             <th className="text-left py-2 px-3">Naam</th>
-            <th className="text-center py-2 px-3">Pre-pool</th>
             <th className="text-center py-2 px-3">WK-poule</th>
             <th className="text-center py-2 px-3">Admin</th>
             <th className="text-center py-2 px-3">Gespeeld</th>
@@ -93,9 +91,6 @@ export default function AdminFlappyCredits() {
             >
               <td className="py-2.5 px-3 font-medium text-gray-900">
                 {u.display_name}
-              </td>
-              <td className="py-2.5 px-3 text-center text-gray-600">
-                {u.preCredits}
               </td>
               <td className="py-2.5 px-3 text-center text-gray-600">
                 {u.wkCredits}
@@ -173,8 +168,8 @@ export default function AdminFlappyCredits() {
         </tbody>
       </table>
       <p className="mt-4 text-xs text-gray-400">
-        Pre-pool = selectie + basis XI · WK-poule = wedstrijdresultaten ·
-        Gespeeld = verbruikte credits
+        WK-poule = correcte voorspellingen (5 exact, 2 goed resultaat) ·
+        Gespeeld = verbruikte credits (seizoen 2)
       </p>
     </div>
   );

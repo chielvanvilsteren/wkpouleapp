@@ -27,21 +27,15 @@ function makeBalanceChain(result: object) {
   }
 }
 
-// Convenience: set up all four getBalance from() calls to return benign data
+type MockResult = { data: unknown; error: null; count?: number | null }
+
+// Convenience: set up getBalance from() calls to return benign data
 function setupBalanceMocks({
-  preScore = { data: { selectie_punten: 3, basis_xi_punten: 2 }, error: null },
-  matchPreds = { data: [], error: null },
-  grants = { data: [], error: null },
-  spent = { data: null, count: 1, error: null },
+  matchPreds = { data: [], error: null } as MockResult,
+  grants = { data: [], error: null } as MockResult,
+  spent = { data: null, count: 1, error: null } as MockResult,
 } = {}) {
   mockFrom.mockImplementation((table: string) => {
-    if (table === 'scores') {
-      return {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn().mockResolvedValue(preScore),
-      }
-    }
     if (table === 'match_predictions') {
       return {
         select: jest.fn().mockReturnThis(),
@@ -82,10 +76,9 @@ describe('GET /api/flappy-credits', () => {
     expect(body.error).toBe('Unauthorized')
   })
 
-  it('returns balance with pre-credits and no match predictions', async () => {
+  it('returns balance with admin grants and no match predictions', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     setupBalanceMocks({
-      preScore: { data: { selectie_punten: 3, basis_xi_punten: 2 }, error: null },
       matchPreds: { data: [], error: null },
       grants: { data: [{ amount: 4 }], error: null },
       spent: { data: null, count: 2, error: null },
@@ -93,10 +86,9 @@ describe('GET /api/flappy-credits', () => {
     const res = await GET()
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.preCredits).toBe(5)
     expect(body.adminGrants).toBe(4)
     expect(body.totalSpent).toBe(2)
-    expect(body.available).toBe(7) // 5 + 4 - 2
+    expect(body.available).toBe(2) // 4 - 2
   })
 
   it('returns balance with wkCredits for exact and correct-result predictions', async () => {
@@ -116,13 +108,6 @@ describe('GET /api/flappy-credits', () => {
     ]
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'scores') {
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
-        }
-      }
       if (table === 'match_predictions') {
         return {
           select: jest.fn().mockReturnThis(),
@@ -157,10 +142,9 @@ describe('GET /api/flappy-credits', () => {
     expect(body.available).toBe(7)
   })
 
-  it('handles null preScore and null grants/spent gracefully', async () => {
+  it('handles null grants/spent gracefully', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     setupBalanceMocks({
-      preScore: { data: null, error: null },
       matchPreds: { data: null, error: null },
       grants: { data: null, error: null },
       spent: { data: null, count: null, error: null },
@@ -215,7 +199,6 @@ describe('POST /api/flappy-credits — start', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: 'session-abc', error: null })
     setupBalanceMocks({
-      preScore: { data: { selectie_punten: 5, basis_xi_punten: 0 }, error: null },
       matchPreds: { data: [], error: null },
       grants: { data: [], error: null },
       spent: { data: null, count: 1, error: null },

@@ -41,6 +41,7 @@ type Props = {
   scoresZichtbaar: boolean
   wkScoresZichtbaar: boolean
   flappyEntries: FlappyEntry[]
+  flappySeason1Entries: FlappyEntry[]
   stickerbalEntries: StickerbalEntry[]
 }
 
@@ -48,8 +49,9 @@ const MEDALS = ['🥇', '🥈', '🥉']
 
 type Tab = 'pre' | 'wk' | 'totaal' | 'flappy' | 'stickerbal'
 
-export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtbaar, flappyEntries, stickerbalEntries }: Props) {
+export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtbaar, flappyEntries, flappySeason1Entries, stickerbalEntries }: Props) {
   const [tab, setTab] = useState<Tab>('totaal')
+  const [flappySeason, setFlappySeason] = useState<1 | 2>(2)
   const confettiRef = useRef(false)
   const egg = useGoldMedalEgg()
 
@@ -64,7 +66,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
   }, [scoresZichtbaar, wkScoresZichtbaar])
 
   const sorted = tab === 'flappy'
-    ? flappyEntries
+    ? (flappySeason === 2 ? flappyEntries : flappySeason1Entries)
     : tab === 'stickerbal'
     ? stickerbalEntries
     : [...entries].sort((a, b) => {
@@ -98,6 +100,21 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
         ))}
       </div>
 
+      {tab === 'flappy' && (
+        <div className="flex items-center gap-3 mb-4">
+          <span className={`text-sm font-medium ${flappySeason === 1 ? 'text-gray-800' : 'text-gray-400'}`}>Seizoen 1</span>
+          <button
+            onClick={() => setFlappySeason(s => s === 2 ? 1 : 2)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${flappySeason === 2 ? 'bg-knvb-500' : 'bg-gray-300'}`}
+            role="switch"
+            aria-checked={flappySeason === 2}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${flappySeason === 2 ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+          <span className={`text-sm font-medium ${flappySeason === 2 ? 'text-gray-800' : 'text-gray-400'}`}>Seizoen 2</span>
+        </div>
+      )}
+
       {tab !== 'flappy' && !showScores && (
         <p className="text-center text-sm text-gray-400 mb-4">
           {tab === 'pre' && 'Pre-pool scores worden zichtbaar na de officiële uitslag.'}
@@ -106,7 +123,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
         </p>
       )}
 
-      {tab === 'flappy' && flappyEntries.length === 0 && (
+      {tab === 'flappy' && (flappySeason === 2 ? flappyEntries : flappySeason1Entries).length === 0 && (
         <p className="text-center text-sm text-gray-400 mb-4">Nog geen scores gespeeld.</p>
       )}
       {tab === 'stickerbal' && stickerbalEntries.length === 0 && (
@@ -155,7 +172,24 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
               </tr>
             </thead>
             <tbody>
-              {tab === 'stickerbal'
+              {tab === 'flappy'
+                ? (flappySeason === 2 ? flappyEntries : flappySeason1Entries).map((entry, idx) => (
+                    <tr key={entry.user_id} className={`border-b border-gray-100 transition-colors ${idx < 3 ? 'bg-oranje-50' : 'hover:bg-gray-50'}`}>
+                      <td className="px-4 py-3 text-center font-semibold text-gray-500">
+                        {idx < 3 ? <span className="text-xl cursor-default select-none" onClick={idx === 0 && flappySeason === 2 ? egg.handleClick : undefined}>{MEDALS[idx]}</span> : idx + 1}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{entry.display_name}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="font-black text-oranje-600 text-lg">{entry.best_score}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {entry.best_fps != null
+                          ? <span className={`text-xs font-mono ${entry.best_fps < 50 ? 'text-red-400' : 'text-gray-400'}`}>{entry.best_fps}</span>
+                          : <span className="text-gray-300 text-xs">—</span>}
+                      </td>
+                    </tr>
+                  ))
+                : tab === 'stickerbal'
                 ? stickerbalEntries.map((entry, idx) => {
                     const winPct = entry.games > 0 ? Math.round((entry.wins / entry.games) * 100) : 0
                     return (
@@ -174,23 +208,6 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                       </tr>
                     )
                   })
-                : tab === 'flappy'
-                ? flappyEntries.map((entry, idx) => (
-                    <tr key={entry.user_id} className={`border-b border-gray-100 transition-colors ${idx < 3 ? 'bg-oranje-50' : 'hover:bg-gray-50'}`}>
-                      <td className="px-4 py-3 text-center font-semibold text-gray-500">
-                        {idx < 3 ? <span className="text-xl cursor-default select-none" onClick={idx === 0 ? egg.handleClick : undefined}>{MEDALS[idx]}</span> : idx + 1}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{entry.display_name}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="font-black text-oranje-600 text-lg">{entry.best_score}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {entry.best_fps != null
-                          ? <span className={`text-xs font-mono ${entry.best_fps < 50 ? 'text-red-400' : 'text-gray-400'}`}>{entry.best_fps}</span>
-                          : <span className="text-gray-300 text-xs">—</span>}
-                      </td>
-                    </tr>
-                  ))
                 : (sorted as RanglijstEntry[]).map((entry, idx) => (
                     <tr key={entry.user_id} className={`border-b border-gray-100 transition-colors ${idx < 3 && showScores ? 'bg-oranje-50' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3 text-center font-semibold text-gray-500">

@@ -1,6 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import FlappyS2Intro from './FlappyS2Intro'
+import FlappyBgCanvas from './FlappyBgCanvas'
 
 // ─── Background image (loaded once, shared across game instances)
 let _bgImg: HTMLImageElement | null = null
@@ -37,7 +39,7 @@ function getDifficulty(score: number) {
   }
 }
 
-type Screen = 'menu' | 'playing' | 'saveprompt' | 'gameover' | 'scoreboard'
+type Screen = 'intro' | 'menu' | 'playing' | 'saveprompt' | 'gameover' | 'scoreboard'
 
 interface Pipe { x: number; gapTop: number; gapBot: number; passed: boolean }
 
@@ -74,12 +76,12 @@ async function fetchScores(): Promise<ScoreEntry[]> {
   }))
 }
 
-async function fetchCredits(): Promise<{ available: number; preCredits: number; wkCredits: number }> {
+async function fetchCredits(): Promise<{ available: number; wkCredits: number }> {
   try {
     const res = await fetch('/api/flappy-credits')
-    if (!res.ok) return { available: 0, preCredits: 0, wkCredits: 0 }
+    if (!res.ok) return { available: 0, wkCredits: 0 }
     return res.json()
-  } catch { return { available: 0, preCredits: 0, wkCredits: 0 } }
+  } catch { return { available: 0, wkCredits: 0 } }
 }
 
 async function startSession(): Promise<{ sessionId: string; newBalance: number } | null> {
@@ -575,7 +577,7 @@ export default function FootballGame({
 
   const sessionIdRef = useRef<string | null>(null)
 
-  const [screen, setScreen] = useState<Screen>('menu')
+  const [screen, setScreen] = useState<Screen>('intro')
   const [finalScore, setFinalScore] = useState(0)
   const [history, setHistory] = useState<ScoreEntry[]>([])
   const [scoresLoading, setScoresLoading] = useState(false)
@@ -586,7 +588,7 @@ export default function FootballGame({
   const gameFpsRef = useRef<number | null>(null)
   const gameStartTimeRef = useRef<number | null>(null)
   const gameDurationRef = useRef<number | null>(null)
-  const [creditBreakdown, setCreditBreakdown] = useState({ preCredits: 0, wkCredits: 0 })
+  const [creditBreakdown, setCreditBreakdown] = useState({ wkCredits: 0 })
 
   const [viewport, setViewport] = useState(() => ({
     w: typeof window !== 'undefined' ? window.innerWidth  : W,
@@ -610,10 +612,10 @@ export default function FootballGame({
 
   // Fetch credits on mount
   useEffect(() => {
-    fetchCredits().then(({ available, preCredits, wkCredits }) => {
+    fetchCredits().then(({ available, wkCredits }) => {
       setCredits(available)
       creditsRef.current = available
-      setCreditBreakdown({ preCredits, wkCredits })
+      setCreditBreakdown({ wkCredits })
     })
   }, [])
 
@@ -767,15 +769,17 @@ export default function FootballGame({
     : Math.min(1, (viewport.w - 32) / W)
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
+      {(screen === 'intro' || screen === 'menu') && <FlappyBgCanvas />}
       <div
         className="relative bg-gray-950 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)]"
         style={{
           width:  isMobile ? viewport.w : Math.min(W, viewport.w - 32),
-          height: isMobile ? viewport.h : 'auto',
+          height: isMobile ? viewport.h : (screen === 'intro' ? H : 'auto'),
           borderRadius: isMobile ? 0 : 16,
           border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
         }}
@@ -804,6 +808,10 @@ export default function FootballGame({
           />
         )}
 
+        {screen === 'intro' && (
+          <FlappyS2Intro onComplete={() => setScreen('menu')} />
+        )}
+
         {screen === 'menu' && (
           <div className="flex flex-col items-center gap-3 px-6 py-4 text-white h-full overflow-y-auto justify-center min-h-0">
             <div className="text-5xl animate-bounce">⚽</div>
@@ -826,8 +834,6 @@ export default function FootballGame({
               </div>
               <div className="flex justify-center gap-3 text-xs text-white/35 mt-1">
                 <span>{playerName}</span>
-                <span>·</span>
-                <span>Selectie: {creditBreakdown.preCredits}</span>
                 <span>·</span>
                 <span>Uitslagen: {creditBreakdown.wkCredits}</span>
               </div>
@@ -970,5 +976,6 @@ export default function FootballGame({
         )}
       </div>
     </div>
+    </>
   )
 }

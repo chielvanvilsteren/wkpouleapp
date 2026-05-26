@@ -44,27 +44,32 @@ export default async function RanglijstPage() {
     wkScores = new Map((wkRaw ?? []).map((s) => [s.user_id, s as WkScore]))
   }
 
-  // Flappy scores — best per user
-  const { data: flappyRaw } = await supabase
-    .from('flappy_scores')
-    .select('user_id, score, fps')
+  // Flappy scores — best per user (seizoen 1 en 2 apart)
+  const [{ data: flappyRaw }, { data: flappyRawS1 }] = await Promise.all([
+    supabase.from('flappy_scores').select('user_id, score, fps').eq('season', 2),
+    supabase.from('flappy_scores').select('user_id, score, fps').eq('season', 1),
+  ])
 
-  const bestFlappy = new Map<string, { score: number; fps: number | null }>()
-  for (const row of (flappyRaw ?? [])) {
-    const prev = bestFlappy.get(row.user_id)
-    if (!prev || row.score > prev.score) {
-      bestFlappy.set(row.user_id, { score: row.score, fps: row.fps ?? null })
+  function buildFlappyEntries(rows: typeof flappyRaw): FlappyEntry[] {
+    const bestMap = new Map<string, { score: number; fps: number | null }>()
+    for (const row of (rows ?? [])) {
+      const prev = bestMap.get(row.user_id)
+      if (!prev || row.score > prev.score) {
+        bestMap.set(row.user_id, { score: row.score, fps: row.fps ?? null })
+      }
     }
+    return Array.from(bestMap.entries())
+      .map(([user_id, { score, fps }]) => ({
+        user_id,
+        display_name: profiles.find((p) => p.id === user_id)?.display_name ?? '???',
+        best_score: score,
+        best_fps: fps,
+      }))
+      .sort((a, b) => b.best_score - a.best_score)
   }
 
-  const flappyEntries: FlappyEntry[] = Array.from(bestFlappy.entries())
-    .map(([user_id, { score, fps }]) => ({
-      user_id,
-      display_name: profiles.find((p) => p.id === user_id)?.display_name ?? '???',
-      best_score: score,
-      best_fps: fps,
-    }))
-    .sort((a, b) => b.best_score - a.best_score)
+  const flappyEntries = buildFlappyEntries(flappyRaw)
+  const flappySeason1Entries = buildFlappyEntries(flappyRawS1)
 
   // Stickerbal results — aggregated by display_name, excluding bots/test
   const { data: stickerbalRaw } = await supabase
@@ -118,6 +123,7 @@ export default async function RanglijstPage() {
           scoresZichtbaar={scoresZichtbaar}
           wkScoresZichtbaar={wkScoresZichtbaar}
           flappyEntries={flappyEntries}
+          flappySeason1Entries={flappySeason1Entries}
           stickerbalEntries={stickerbalEntries}
         />
       </div>

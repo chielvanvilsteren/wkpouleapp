@@ -5,15 +5,6 @@ import { minGameMs } from '@/lib/flappy-physics'
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
 async function getBalance(supabase: SupabaseClient, userId: string) {
-  const { data: preScore } = await supabase
-    .from('scores')
-    .select('selectie_punten, basis_xi_punten')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  const preCredits =
-    (preScore?.selectie_punten ?? 0) + (preScore?.basis_xi_punten ?? 0)
-
   const { data: matchPreds } = await supabase
     .from('match_predictions')
     .select('home_score, away_score, match_id')
@@ -49,18 +40,20 @@ async function getBalance(supabase: SupabaseClient, userId: string) {
     .from('flappy_credit_grants')
     .select('amount')
     .eq('user_id', userId)
+    .eq('season', 2)
   const adminGrants = (grants ?? []).reduce((sum, g) => sum + g.amount, 0)
 
   const { count: spent } = await supabase
     .from('flappy_credit_log')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
+    .eq('season', 2)
 
-  const totalEarned = preCredits + wkCredits + adminGrants
+  const totalEarned = wkCredits + adminGrants
   const totalSpent = spent ?? 0
   const available = Math.max(0, totalEarned - totalSpent)
 
-  return { available, totalEarned, totalSpent, preCredits, wkCredits, adminGrants }
+  return { available, totalEarned, totalSpent, wkCredits, adminGrants }
 }
 
 export async function GET() {

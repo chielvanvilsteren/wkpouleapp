@@ -12,6 +12,7 @@ export async function GET() {
   const { data: allScores, error: scoresError } = await admin
     .from("flappy_scores")
     .select("user_id, score, fps")
+    .eq("season", 2)
     .order("score", { ascending: false });
 
   if (scoresError) {

@@ -40,7 +40,6 @@ function makeChain(result: object) {
 type SetupOptions = {
   adminCheck?: object
   profiles?: object
-  scores?: object
   grants?: object
   spent?: object
   allPreds?: object
@@ -50,7 +49,6 @@ type SetupOptions = {
 function setupAdminMocks({
   adminCheck = { data: { is_admin: true }, error: null },
   profiles = { data: [{ id: 'u1', display_name: 'Alice' }], error: null },
-  scores = { data: [], error: null },
   grants = { data: [], error: null },
   spent = { data: [], error: null },
   allPreds = { data: [], error: null },
@@ -76,16 +74,11 @@ function setupAdminMocks({
         order: jest.fn().mockResolvedValue(profiles),
       }
     }
-    if (table === 'scores') {
-      return {
-        select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockResolvedValue(scores),
-      }
-    }
     if (table === 'flappy_credit_grants') {
       return {
         select: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue(grants),
         insert: jest.fn().mockResolvedValue({ error: null }),
       }
@@ -93,7 +86,8 @@ function setupAdminMocks({
     if (table === 'flappy_credit_log') {
       return {
         select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockResolvedValue(spent),
+        in: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue(spent),
       }
     }
     if (table === 'match_predictions') {
@@ -154,11 +148,10 @@ describe('GET /api/admin/flappy-credits', () => {
     expect(body).toEqual([])
   })
 
-  it('returns basic credits with preCredits and adminGrants', async () => {
+  it('returns basic credits with adminGrants', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'admin' } } })
     setupAdminMocks({
       profiles: { data: [{ id: 'u1', display_name: 'Alice' }], error: null },
-      scores: { data: [{ user_id: 'u1', selectie_punten: 3, basis_xi_punten: 2 }], error: null },
       grants: { data: [{ user_id: 'u1', amount: 5, note: 'bonus', granted_at: '2026-01-01' }], error: null },
       spent: { data: [{ user_id: 'u1' }, { user_id: 'u1' }], error: null },
       allPreds: { data: [], error: null },
@@ -168,10 +161,9 @@ describe('GET /api/admin/flappy-credits', () => {
     const body = await res.json()
     expect(body).toHaveLength(1)
     const alice = body[0]
-    expect(alice.preCredits).toBe(5)
     expect(alice.adminGrants).toBe(5)
     expect(alice.spent).toBe(2)
-    expect(alice.available).toBe(8) // 5+5 - 2
+    expect(alice.available).toBe(3) // 5 - 2
     expect(alice.wkCredits).toBe(0)
   })
 
@@ -208,18 +200,20 @@ describe('GET /api/admin/flappy-credits', () => {
           order: jest.fn().mockResolvedValue({ data: [{ id: 'u1', display_name: 'Alice' }], error: null }),
         }
       }
-      if (table === 'scores') {
-        return { select: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }) }
-      }
       if (table === 'flappy_credit_grants') {
         return {
           select: jest.fn().mockReturnThis(),
           in: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
           order: jest.fn().mockResolvedValue({ data: [], error: null }),
         }
       }
       if (table === 'flappy_credit_log') {
-        return { select: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }) }
+        return {
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+        }
       }
       if (table === 'match_predictions') {
         return { select: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: preds, error: null }) }
@@ -239,11 +233,10 @@ describe('GET /api/admin/flappy-credits', () => {
     expect(body[0].wkCredits).toBe(7) // 5 + 2
   })
 
-  it('handles null scores/grants/spent/allPreds (exercises ?? [] fallbacks)', async () => {
+  it('handles null grants/spent/allPreds (exercises ?? [] fallbacks)', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'admin' } } })
     setupAdminMocks({
       profiles: { data: [{ id: 'u1', display_name: 'Zero' }], error: null },
-      scores: { data: null, error: null },
       grants: { data: null, error: null },
       spent: { data: null, error: null },
       allPreds: { data: null, error: null },
@@ -251,7 +244,6 @@ describe('GET /api/admin/flappy-credits', () => {
     const res = await GET()
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body[0].preCredits).toBe(0)
     expect(body[0].adminGrants).toBe(0)
     expect(body[0].spent).toBe(0)
     expect(body[0].wkCredits).toBe(0)
@@ -282,18 +274,20 @@ describe('GET /api/admin/flappy-credits', () => {
           order: jest.fn().mockResolvedValue({ data: [{ id: 'u1', display_name: 'Bob' }], error: null }),
         }
       }
-      if (table === 'scores') {
-        return { select: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }) }
-      }
       if (table === 'flappy_credit_grants') {
         return {
           select: jest.fn().mockReturnThis(),
           in: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
           order: jest.fn().mockResolvedValue({ data: [], error: null }),
         }
       }
       if (table === 'flappy_credit_log') {
-        return { select: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }) }
+        return {
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+        }
       }
       if (table === 'match_predictions') {
         return { select: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: preds, error: null }) }

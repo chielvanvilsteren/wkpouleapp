@@ -32,24 +32,21 @@ export async function GET() {
   const userIds = profiles.map((p) => p.id)
 
   const [
-    { data: scores },
     { data: grants },
     { data: spent },
     { data: allPreds },
   ] = await Promise.all([
     supabase
-      .from('scores')
-      .select('user_id, selectie_punten, basis_xi_punten')
-      .in('user_id', userIds),
-    supabase
       .from('flappy_credit_grants')
       .select('user_id, amount, note, granted_at')
       .in('user_id', userIds)
+      .eq('season', 2)
       .order('granted_at', { ascending: false }),
     supabase
       .from('flappy_credit_log')
       .select('user_id')
-      .in('user_id', userIds),
+      .in('user_id', userIds)
+      .eq('season', 2),
     supabase
       .from('match_predictions')
       .select('user_id, home_score, away_score, match_id')
@@ -69,9 +66,6 @@ export async function GET() {
   }
 
   const result = profiles.map((profile) => {
-    const pre = (scores ?? []).find((s) => s.user_id === profile.id)
-    const preCredits = (pre?.selectie_punten ?? 0) + (pre?.basis_xi_punten ?? 0)
-
     const adminGrants = (grants ?? [])
       .filter((g) => g.user_id === profile.id)
       .reduce((sum, g) => sum + g.amount, 0)
@@ -93,13 +87,12 @@ export async function GET() {
       }
     }
 
-    const totalEarned = preCredits + wkCredits + adminGrants
+    const totalEarned = wkCredits + adminGrants
     const available = Math.max(0, totalEarned - spentCount)
 
     return {
       id: profile.id,
       display_name: profile.display_name,
-      preCredits,
       wkCredits,
       adminGrants,
       spent: spentCount,

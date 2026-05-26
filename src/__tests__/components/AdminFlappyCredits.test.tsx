@@ -5,20 +5,18 @@ const mockUsers = [
   {
     id: 'user-1',
     display_name: 'Alice',
-    preCredits: 3,
     wkCredits: 2,
     adminGrants: 1,
     spent: 2,
-    available: 4,
+    available: 1,
   },
   {
     id: 'user-2',
     display_name: 'Bob',
-    preCredits: 2,
     wkCredits: 1,
     adminGrants: 0,
     spent: 0,
-    available: 0,
+    available: 1,
   },
 ]
 

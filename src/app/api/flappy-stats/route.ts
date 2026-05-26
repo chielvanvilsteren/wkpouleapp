@@ -9,6 +9,7 @@ export async function GET() {
   const { data: scores, error } = await supabase
     .from('flappy_scores')
     .select('user_id, score, played_at')
+    .eq('season', 2)
     .order('played_at', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
