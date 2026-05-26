@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { minGameMs } from '@/lib/flappy-physics'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -99,14 +100,49 @@ export async function POST(req: Request) {
     const sessionId = body?.sessionId as string | undefined
     const score = Number(body?.score)
     const fps = body?.fps != null ? Math.round(Number(body.fps)) : null
+    const duration_ms = body?.duration_ms != null ? Math.round(Number(body.duration_ms)) : null
 
     if (!sessionId || !Number.isInteger(score) || score < 0 || score > 9999) {
       return NextResponse.json({ error: 'Ongeldige invoer' }, { status: 400 })
     }
 
+    // Tijdvalidatie: server-side elapsed moet >= minGameMs(score) zijn (10% marge)
+    if (score > 0) {
+      const { data: session } = await supabase
+        .from('flappy_credit_log')
+        .select('played_at')
+        .eq('session_id', sessionId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (!session) {
+        return NextResponse.json({ error: 'Ongeldige sessie' }, { status: 403 })
+      }
+
+      const serverElapsedMs = Date.now() - new Date(session.played_at).getTime()
+      const minimumMs = minGameMs(score) * 0.9
+
+      const isSuspicious =
+        serverElapsedMs < minimumMs ||
+        (duration_ms != null && duration_ms < minimumMs)
+
+      if (isSuspicious) {
+        await supabase.from('flappy_suspicious_attempts').insert({
+          user_id: user.id,
+          session_id: sessionId,
+          submitted_score: score,
+          server_elapsed_ms: serverElapsedMs,
+          minimum_ms: Math.round(minimumMs),
+          client_duration_ms: duration_ms,
+          fps,
+        })
+        return NextResponse.json({ error: 'Score niet mogelijk in de speeltijd' }, { status: 403 })
+      }
+    }
+
     const { error: scoreErr } = await supabase
       .from('flappy_scores')
-      .insert({ user_id: user.id, score, credit_log_id: sessionId, fps })
+      .insert({ user_id: user.id, score, credit_log_id: sessionId, fps, duration_ms })
 
     if (scoreErr) {
       if (scoreErr.code === '23505') {

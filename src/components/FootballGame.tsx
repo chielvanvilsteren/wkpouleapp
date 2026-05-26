@@ -94,12 +94,13 @@ async function startSession(): Promise<{ sessionId: string; newBalance: number }
   } catch { return null }
 }
 
-async function saveScore(sessionId: string, score: number, fps: number | null): Promise<void> {
+
+async function saveScore(sessionId: string, score: number, fps: number | null, duration_ms: number | null): Promise<void> {
   try {
     await fetch('/api/flappy-credits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', sessionId, score, fps }),
+      body: JSON.stringify({ action: 'save', sessionId, score, fps, duration_ms }),
     })
   } catch { /* ignore */ }
 }
@@ -583,6 +584,8 @@ export default function FootballGame({
   const [credits, setCredits] = useState<number | null>(null)
   const [testMode, setTestMode] = useState(false)
   const gameFpsRef = useRef<number | null>(null)
+  const gameStartTimeRef = useRef<number | null>(null)
+  const gameDurationRef = useRef<number | null>(null)
   const [creditBreakdown, setCreditBreakdown] = useState({ preCredits: 0, wkCredits: 0 })
 
   const [viewport, setViewport] = useState(() => ({
@@ -640,6 +643,7 @@ export default function FootballGame({
       const now = Date.now()
       if (started && now - lastFlapRef.current < FLAP_COOLDOWN) return
       lastFlapRef.current = now
+      if (!started) gameStartTimeRef.current = now
       started = true
       if (gsRef.current && !gsRef.current.dead) {
         gsRef.current.ballVY = FLAP_V
@@ -653,11 +657,13 @@ export default function FootballGame({
     canvas.addEventListener('touchstart', touchHandler, { passive: false })
     window.addEventListener('keydown', keyHandler)
 
+    const PHYSICS_INTERVAL = 1000 / 60
+    let lastPhysicsTime = 0
     let fpsFrameCount = 0
     let fpsLastTime = performance.now()
 
     function loop() {
-      // FPS measurement
+      // FPS measurement (render frames, for diagnostics)
       fpsFrameCount++
       const now = performance.now()
       if (now - fpsLastTime >= 1000) {
@@ -668,7 +674,10 @@ export default function FootballGame({
 
       const gs = gsRef.current!
 
-      if (started && !gs.dead) {
+      // Physics capped at 60fps — makes minGameMs calculation deterministic
+      if (started && !gs.dead && now - lastPhysicsTime >= PHYSICS_INTERVAL * 0.85) {
+        lastPhysicsTime = now
+
         // Physics
         gs.ballVY = Math.min(gs.ballVY + GRAVITY, 13)
         gs.ballY += gs.ballVY
@@ -686,7 +695,8 @@ export default function FootballGame({
         // Score
         for (const p of gs.pipes) {
           if (!p.passed && p.x + PIPE_W < BALL_X - BALL_R) {
-            p.passed = true; gs.score++
+            p.passed = true
+            gs.score++
           }
         }
 
@@ -700,6 +710,7 @@ export default function FootballGame({
         // Collision
         if (hit(gs.ballY, gs.pipes)) {
           gs.dead = true
+          gameDurationRef.current = gameStartTimeRef.current ? Date.now() - gameStartTimeRef.current : null
           setFinalScore(gs.score)
           deathTimer = setTimeout(() => setScreen(testMode ? 'gameover' : 'saveprompt'), 950)
         }
@@ -884,7 +895,7 @@ export default function FootballGame({
                 onClick={async () => {
                   if (!sessionIdRef.current) { setScreen('gameover'); return }
                   setSaving(true)
-                  await saveScore(sessionIdRef.current, finalScore, gameFpsRef.current)
+                  await saveScore(sessionIdRef.current, finalScore, gameFpsRef.current, gameDurationRef.current)
                   setSaving(false)
                   setScreen('gameover')
                 }}

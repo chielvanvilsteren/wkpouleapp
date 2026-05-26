@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
+import type { Database } from "@/types";
 import AdminUitslagForm from "@/components/AdminUitslagForm";
 import AdminToggles from "@/components/AdminToggles";
 import AdminWkIncidentsForm from "@/components/AdminWkIncidentsForm";
@@ -12,6 +14,7 @@ import AdminStickerbalSettings from "@/components/AdminStickerbalSettings";
 import AdminRecalcWkScores from "@/components/AdminRecalcWkScores";
 import AdminFootballHealth from "@/components/AdminFootballHealth";
 import AdminDailySyncTest from "@/components/AdminDailySyncTest";
+import AdminFlappySuspicious from "@/components/AdminFlappySuspicious";
 import PageHeader from "@/components/PageHeader";
 import type {
   MasterUitslag,
@@ -154,6 +157,14 @@ export default async function AdminPage() {
 
   const errorLogs = syncLogs.filter((l) => l.status === "error").length;
 
+  const adminClient = createServiceClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+  const { count: suspiciousCount } = await adminClient
+    .from("flappy_suspicious_attempts")
+    .select("id", { count: "exact", head: true });
+
   return (
     <>
       <PageHeader
@@ -165,7 +176,7 @@ export default async function AdminPage() {
         <AdminTabsLayout
           tabs={[
             { key: "beheer", label: "Beheer" },
-            { key: "credits", label: "🎮 Game instellingen" },
+            { key: "credits", label: "🎮 Game instellingen", badge: suspiciousCount ?? 0 },
             { key: "berichten", label: "Berichten", badge: errorLogs },
           ]}
         >
@@ -250,6 +261,20 @@ export default async function AdminPage() {
                 Overzicht van alle credits per deelnemer. Je kunt handmatig credits toekennen.
               </p>
               <AdminFlappyCredits />
+            </div>
+            <div className="card">
+              <h2 className="section-title">
+                🚨 Flappy Bal — Verdachte pogingen
+                {(suspiciousCount ?? 0) > 0 && (
+                  <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {suspiciousCount}
+                  </span>
+                )}
+              </h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Scores die geblokkeerd zijn omdat de speeltijd niet klopte.
+              </p>
+              <AdminFlappySuspicious />
             </div>
           </div>
 

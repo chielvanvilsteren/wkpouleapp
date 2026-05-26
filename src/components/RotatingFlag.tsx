@@ -71,13 +71,26 @@ type Props = {
 
 export default function RotatingFlag({ className = "" }: Props) {
   const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
+    const onOpen = () => setPaused(true);
+    const onClose = () => setPaused(false);
+    window.addEventListener('flappy-open', onOpen);
+    window.addEventListener('flappy-close', onClose);
+    return () => {
+      window.removeEventListener('flappy-open', onOpen);
+      window.removeEventListener('flappy-close', onClose);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (paused) return;
     const id = setInterval(() => {
       setIndex((i) => (i + 1) % WC_2026_CODES.length);
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [paused]);
 
   const flagUrl = `https://flagcdn.com/w320/${WC_2026_CODES[index]}.png`;
 

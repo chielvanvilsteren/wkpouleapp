@@ -49,8 +49,14 @@ export default function EasterEggListener({ playerName, opponents, isAdmin }: Pr
   }, [])
 
   useEffect(() => {
-    if (state === 'transitioning') startMusic()
-    if (state === 'idle') stopMusic()
+    if (state === 'transitioning') {
+      startMusic()
+      window.dispatchEvent(new CustomEvent('flappy-open'))
+    }
+    if (state === 'idle') {
+      stopMusic()
+      window.dispatchEvent(new CustomEvent('flappy-close'))
+    }
   }, [state, startMusic, stopMusic])
 
   useEffect(() => () => stopMusic(), [stopMusic])
