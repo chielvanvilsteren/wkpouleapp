@@ -36,6 +36,17 @@ crons:
       - key: SYNC_SECRET_TOKEN
         sync: false
 
+  - name: sync-heartbeat
+    # Dagelijks om 12:00 CEST (= 10:00 UTC) — controleert of de API bereikbaar is
+    schedule: "0 10 * * *"
+    command: >-
+      curl -s -X POST
+      -H "Authorization: Bearer $SYNC_SECRET_TOKEN"
+      "https://wkpouleapp.onrender.com/api/sync-results?source=heartbeat"
+    envVars:
+      - key: SYNC_SECRET_TOKEN
+        sync: false
+
   - name: sync-match-results-wk
     # Elk uur op het half uur (xx:30) — het script checkt zelf of er een
     # wedstrijd is die 2-4,5 uur geleden is begonnen. Zo niet: stille skip.

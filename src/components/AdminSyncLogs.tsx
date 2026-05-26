@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export type SyncLog = {
   id: number;
@@ -37,7 +39,17 @@ const STATUS_CONFIG = {
 };
 
 export default function AdminSyncLogs({ logs }: Props) {
+  const router = useRouter();
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const deleteLog = async (id: number) => {
+    setDeletingId(id);
+    const supabase = createClient();
+    await supabase.from("sync_logs").delete().eq("id", id);
+    setDeletingId(null);
+    router.refresh();
+  };
 
   if (logs.length === 0) {
     return (
@@ -132,7 +144,9 @@ export default function AdminSyncLogs({ logs }: Props) {
                 <span className="text-base mt-0.5 shrink-0">{cfg.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold">{cfg.label}</span>
+                    <span className="text-xs font-semibold">
+                      {log.triggered_by === "heartbeat" ? "💓 Dagelijkse controle" : cfg.label}
+                    </span>
                     {log.status === "success" && (
                       <span className="text-xs opacity-70">
                         {log.updated} bijgewerkt · {log.skipped} overgeslagen
@@ -142,7 +156,7 @@ export default function AdminSyncLogs({ logs }: Props) {
                       </span>
                     )}
                     <span className="text-xs opacity-60 ml-auto shrink-0">
-                      {log.triggered_by === "admin" ? "👤" : "🤖"}{" "}
+                      {log.triggered_by === "heartbeat" ? "💓" : log.triggered_by === "admin" ? "👤" : "🤖"}{" "}
                       {new Date(log.ran_at).toLocaleString("nl-NL", {
                         day: "numeric",
                         month: "short",
@@ -161,6 +175,14 @@ export default function AdminSyncLogs({ logs }: Props) {
                     {isExpanded ? "▲" : "▼"}
                   </span>
                 )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteLog(log.id); }}
+                  disabled={deletingId === log.id}
+                  className="text-xs opacity-40 hover:opacity-80 shrink-0 ml-1 transition-opacity"
+                  title="Verwijderen"
+                >
+                  {deletingId === log.id ? "…" : "✕"}
+                </button>
               </div>
 
               {isExpanded && hasDetails && (

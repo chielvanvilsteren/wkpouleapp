@@ -56,6 +56,7 @@ interface ApiResponse {
 interface DbMatch {
   id: number
   match_number: number
+  stage: string
   external_api_id: number | null
   home_team: string
   away_team: string
@@ -179,6 +180,157 @@ function normalizeTeamName(apiName: string): string {
   return TEAM_NAME_MAP[apiName] ?? apiName
 }
 
+// ─── Knockout team namen sync ─────────────────────────────────────────────────
+
+const API_STAGE_TO_DB: Record<string, string> = {
+  'ROUND_OF_32':          'r32',
+  'LAST_16':              'r16',
+  'ROUND_OF_16':          'r16',
+  'QUARTER_FINALS':       'qf',
+  'SEMI_FINALS':          'sf',
+  'THIRD_PLACE':          '3rd',
+  'THIRD_PLACE_PLAY_OFF': '3rd',
+  'FINAL':                'final',
+}
+
+const TBD_NAMES = new Set(['To Be Determined', 'TBD', '', 'Unknown'])
+
+function isPlaceholderTeam(name: string): boolean {
+  if (TBD_NAMES.has(name)) return true
+  return (
+    name.startsWith('1e ') || name.startsWith('2e ') ||
+    name.includes('Groep') || name.includes('Winnaar') ||
+    name.includes('Beste') || name.includes('Verliezer')
+  )
+}
+
+function utcToAmsterdam(utcDate: string): { date: string; time: string } {
+  const dt = new Date(utcDate)
+  const date = dt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Amsterdam' }) // YYYY-MM-DD
+  const time = dt.toLocaleTimeString('nl-NL', {
+    timeZone: 'Europe/Amsterdam',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }) // HH:MM:SS
+  return { date, time }
+}
+
+async function fetchAllMatches(): Promise<ApiMatch[]> {
+  if (!FOOTBALL_DATA_API_KEY) throw new Error('FOOTBALL_DATA_API_KEY niet ingesteld')
+
+  const url = `https://api.football-data.org/v4/competitions/${WK_COMPETITION_ID}/matches`
+  log(`API aanroep (alle wedstrijden): ${url}`)
+
+  const response = await fetch(url, {
+    headers: { 'X-Auth-Token': FOOTBALL_DATA_API_KEY },
+  })
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(`API fout ${response.status}: ${body}`)
+  }
+
+  const data: ApiResponse = await response.json()
+  return data.matches
+}
+
+async function syncKnockoutTeamNames() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+  log('--- Knockout teamnamen sync ---')
+
+  let allMatches: ApiMatch[]
+  try {
+    allMatches = await fetchAllMatches()
+  } catch (err) {
+    warn(`Knockout teamnamen: API ophalen mislukt — ${err}`)
+    return
+  }
+
+  // Alleen knockout wedstrijden waarbij beide teams bekend zijn
+  const knockoutWithTeams = allMatches.filter((m) => {
+    if (!API_STAGE_TO_DB[m.stage]) return false
+    if (!m.homeTeam?.name || TBD_NAMES.has(m.homeTeam.name)) return false
+    if (!m.awayTeam?.name || TBD_NAMES.has(m.awayTeam.name)) return false
+    return true
+  })
+
+  if (knockoutWithTeams.length === 0) {
+    log('Geen knockout wedstrijden met bekende teams — klaar')
+    return
+  }
+
+  log(`${knockoutWithTeams.length} knockout wedstrijden met bekende teams`)
+
+  // Laad alle knockout DB-wedstrijden
+  const { data: dbMatchesRaw, error: dbError } = await supabase
+    .from('matches')
+    .select('id, match_number, stage, external_api_id, home_team, away_team, home_score, away_score, is_finished, match_date, match_time')
+    .in('stage', ['r32', 'r16', 'qf', 'sf', '3rd', 'final'])
+
+  if (dbError) {
+    warn(`Knockout teamnamen: DB ophalen mislukt — ${dbError.message}`)
+    return
+  }
+
+  const dbMatches = (dbMatchesRaw ?? []) as DbMatch[]
+  let updated = 0
+
+  for (const apiMatch of knockoutWithTeams) {
+    const homeApi = normalizeTeamName(apiMatch.homeTeam.name)
+    const awayApi = normalizeTeamName(apiMatch.awayTeam.name)
+    const dbStage = API_STAGE_TO_DB[apiMatch.stage]
+    const { date: apiDate, time: apiTime } = utcToAmsterdam(apiMatch.utcDate)
+
+    // Zoek DB-match: eerst op external_api_id, dan op datum + tijd + stage
+    let dbMatch = dbMatches.find((m) => m.external_api_id === apiMatch.id)
+
+    if (!dbMatch) {
+      dbMatch = dbMatches.find(
+        (m) =>
+          m.stage === dbStage &&
+          m.match_date === apiDate &&
+          (m.match_time === null || m.match_time === apiTime),
+      )
+    }
+
+    if (!dbMatch) {
+      warn(`Geen DB-match voor knockout: ${homeApi} - ${awayApi} (${dbStage} ${apiDate})`)
+      continue
+    }
+
+    // Sla over als teams al correct zijn
+    if (dbMatch.home_team === homeApi && dbMatch.away_team === awayApi) {
+      continue
+    }
+
+    // Sla over als DB al echte teamnamen heeft (geen placeholders)
+    if (!isPlaceholderTeam(dbMatch.home_team) && !isPlaceholderTeam(dbMatch.away_team)) {
+      log(`Skip #${dbMatch.match_number}: al ingevuld (${dbMatch.home_team} - ${dbMatch.away_team})`)
+      continue
+    }
+
+    const { error: updateError } = await supabase
+      .from('matches')
+      .update({
+        home_team: homeApi,
+        away_team: awayApi,
+        external_api_id: apiMatch.id,
+      })
+      .eq('id', dbMatch.id)
+
+    if (updateError) {
+      warn(`Teamnamen update mislukt voor #${dbMatch.match_number}: ${updateError.message}`)
+      continue
+    }
+
+    log(`✅ Teamnamen bijgewerkt: #${dbMatch.match_number} (${dbStage}): ${homeApi} - ${awayApi}`)
+    updated++
+  }
+
+  log(`--- Knockout teamnamen: ${updated} bijgewerkt ---`)
+}
+
 // ─── Hoofd sync logica ────────────────────────────────────────────────────────
 
 async function syncResults() {
@@ -200,7 +352,8 @@ async function syncResults() {
   }
 
   if (apiMatches.length === 0) {
-    log('Geen afgeronde wedstrijden gevonden in dit tijdvenster. Klaar.')
+    log('Geen afgeronde wedstrijden gevonden in dit tijdvenster.')
+    await syncKnockoutTeamNames()
     return
   }
 
@@ -210,7 +363,7 @@ async function syncResults() {
 
   const { data: dbMatches, error: dbError } = await supabase
     .from('matches')
-    .select('id, match_number, external_api_id, home_team, away_team, home_score, away_score, is_finished, match_date, match_time')
+    .select('id, match_number, stage, external_api_id, home_team, away_team, home_score, away_score, is_finished, match_date, match_time')
     .or(`is_finished.eq.false,external_api_id.in.(${apiIds.join(',')})`)
 
   if (dbError) {
@@ -301,7 +454,10 @@ async function syncResults() {
 
   log(`=== Sync klaar: ${updated} bijgewerkt, ${skipped} overgeslagen, ${unmatched} niet gekoppeld ===`)
 
-  // 4. Als er updates waren, herbereken de scores
+  // 4. Knockout teamnamen bijwerken zodra ze bekend zijn
+  await syncKnockoutTeamNames()
+
+  // 5. Als er updates waren, herbereken de scores
   if (updated > 0) {
     log('Scores herberekenen...')
     const recalcUrl = process.env.NEXT_PUBLIC_APP_URL

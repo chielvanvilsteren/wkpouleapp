@@ -81,7 +81,6 @@ export async function GET() {
     const { data: incidents } = await admin
       .from('wk_incidents_predictions')
       .select('user_id, wereldkampioen, topscorer_wk, rode_kaart, gele_kaart, geblesseerde, eerste_goal_nl')
-      .eq('is_definitief', true)
 
     const total = incidents?.length ?? 0
     result.total_wk = total

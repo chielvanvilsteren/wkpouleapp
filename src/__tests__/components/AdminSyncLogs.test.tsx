@@ -1,6 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import AdminSyncLogs, { SyncLog } from '@/components/AdminSyncLogs'
 
+jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn() }) }))
+jest.mock('@/lib/supabase/client', () => ({
+  createClient: jest.fn(() => ({
+    from: jest.fn(() => ({ delete: jest.fn(() => ({ eq: jest.fn(() => Promise.resolve({ error: null })) })) })),
+  })),
+}))
+
 const baseLog = (overrides: Partial<SyncLog> = {}): SyncLog => ({
   id: 1,
   ran_at: '2025-06-01T10:00:00.000Z',

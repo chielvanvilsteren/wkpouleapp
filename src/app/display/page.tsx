@@ -79,7 +79,6 @@ export default async function DisplayPage() {
         ? admin
             .from("wk_incidents_predictions")
             .select("user_id")
-            .eq("is_definitief", true)
             .in("user_id", userIds)
             .then(({ data }) => {
               for (const r of data ?? []) wkIngevuldSet.add(r.user_id);

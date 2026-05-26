@@ -50,7 +50,8 @@ export default async function WkPoulePage() {
   const now = new Date()
   const deadline = uitslag?.wk_poule_deadline ? new Date(uitslag.wk_poule_deadline) : null
   const deadlinePassed = deadline !== null && now >= deadline
-  const isOpen = (uitslag?.wk_poule_open ?? true) && !deadlinePassed
+  const adminOpen = uitslag?.wk_poule_open ?? true
+  const isOpen = adminOpen && !deadlinePassed
 
   const statusNode = deadlinePassed
     ? <span className="text-red-300 font-medium">Deadline verstreken ⛔</span>
@@ -76,6 +77,7 @@ export default async function WkPoulePage() {
           initialPredictions={predictions}
           initialIncidents={incidents}
           isOpen={isOpen}
+          adminOpen={adminOpen}
           now={new Date().toISOString()}
           selectie={selectie}
         />

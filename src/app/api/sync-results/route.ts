@@ -108,6 +108,41 @@ export async function POST(req: NextRequest) {
   const log = (msg: string) => { console.log(msg); results.push(msg) }
   const warn = (msg: string) => { console.warn(msg); results.push(`WARN: ${msg}`) }
 
+  // ── Heartbeat: dagelijkse controle om 12:00 CEST ─────────────────────────────
+  if (triggeredBy === 'cron' && req.nextUrl.searchParams.get('source') === 'heartbeat') {
+    const start = Date.now()
+    let reachable = false
+    let responseMs: number | null = null
+    let errorMsg = ''
+
+    try {
+      const res = await fetch(
+        `https://api.football-data.org/v4/competitions/${WK_COMPETITION_ID}`,
+        { headers: { 'X-Auth-Token': FOOTBALL_DATA_API_KEY! } },
+      )
+      responseMs = Date.now() - start
+      reachable = res.ok
+      if (!res.ok) errorMsg = `HTTP ${res.status}`
+    } catch (err) {
+      responseMs = Date.now() - start
+      errorMsg = err instanceof Error ? err.message : 'Onbekende fout'
+    }
+
+    const message = reachable
+      ? `💓 Dagelijkse controle 12:00 — API bereikbaar (${responseMs}ms)`
+      : `💓 Dagelijkse controle 12:00 — API NIET bereikbaar: ${errorMsg}`
+
+    await supabase.from('sync_logs').insert({
+      status: reachable ? 'none' : 'error',
+      message,
+      updated: 0, skipped: 0, unmatched: 0,
+      details: [],
+      triggered_by: 'heartbeat',
+    })
+
+    return NextResponse.json({ heartbeat: true, reachable, message })
+  }
+
   // ── Smart window check (alleen voor automatische cronjob) ──────────────────
   // Als de aanroep van een cronjob komt, controleer of er een wedstrijd is
   // die 2-4,5 uur geleden is begonnen en nog niet afgerond is.

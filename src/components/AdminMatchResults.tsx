@@ -28,6 +28,22 @@ export default function AdminMatchResults({ matches }: Props) {
       ]),
     ),
   );
+  const [teamNames, setTeamNames] = useState<Map<number, { home: string; away: string }>>(
+    new Map(
+      matches
+        .filter((m) => m.stage !== "group")
+        .map((m) => [m.id, { home: m.home_team, away: m.away_team }]),
+    ),
+  );
+
+  const setTeamName = (id: number, side: "home" | "away", val: string) => {
+    setTeamNames((prev) => {
+      const next = new Map(prev);
+      const cur = next.get(id)!;
+      next.set(id, { ...cur, [side]: val });
+      return next;
+    });
+  };
   const [openStages, setOpenStages] = useState<Set<string>>(new Set(["group"]));
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<
@@ -75,6 +91,7 @@ export default function AdminMatchResults({ matches }: Props) {
     const supabase = createClient();
 
     for (const [id, r] of Array.from(results.entries())) {
+      const names = teamNames.get(id);
       const { error } = await supabase
         .from("matches")
         .update({
@@ -82,6 +99,7 @@ export default function AdminMatchResults({ matches }: Props) {
           away_score: r.away,
           is_live: r.live,
           is_finished: r.finished,
+          ...(names ? { home_team: names.home, away_team: names.away } : {}),
         })
         .eq("id", id);
       if (error) {
@@ -150,9 +168,19 @@ export default function AdminMatchResults({ matches }: Props) {
                           { day: "numeric", month: "short", timeZone: "Europe/Amsterdam" },
                         )}
                       </span>
-                      <span className="flex-1 text-sm text-right text-gray-700 truncate">
-                        {match.home_team}
-                      </span>
+                      {match.stage === "group" ? (
+                        <span className="flex-1 text-sm text-right text-gray-700 truncate">
+                          {match.home_team}
+                        </span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={teamNames.get(match.id)?.home ?? match.home_team}
+                          onChange={(e) => setTeamName(match.id, "home", e.target.value)}
+                          className="flex-1 text-sm text-right input-field px-2 py-1 min-w-0"
+                          placeholder="Land"
+                        />
+                      )}
                       <div className="flex items-center gap-1 shrink-0">
                         <input
                           type="number"
@@ -178,9 +206,19 @@ export default function AdminMatchResults({ matches }: Props) {
                           placeholder="—"
                         />
                       </div>
-                      <span className="flex-1 text-sm text-left text-gray-700 truncate">
-                        {match.away_team}
-                      </span>
+                      {match.stage === "group" ? (
+                        <span className="flex-1 text-sm text-left text-gray-700 truncate">
+                          {match.away_team}
+                        </span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={teamNames.get(match.id)?.away ?? match.away_team}
+                          onChange={(e) => setTeamName(match.id, "away", e.target.value)}
+                          className="flex-1 text-sm text-left input-field px-2 py-1 min-w-0"
+                          placeholder="Land"
+                        />
+                      )}
                       <button
                         onClick={() => cycleStatus(match.id)}
                         className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${

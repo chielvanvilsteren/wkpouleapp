@@ -166,28 +166,28 @@ describe('WkPouleForm', () => {
     expect(nlSpansOpen.length).toBeGreaterThan(0)
   })
 
-  it('shows lock icon when match is locked (nowFuture)', () => {
+  it('shows lock icon when group stage is closed (isOpen=false)', () => {
     render(
       <WkPouleForm
         matches={groupMatches}
         initialPredictions={emptyPredictions}
         initialIncidents={emptyIncidents}
-        isOpen
-        now={nowFuture}
+        isOpen={false}
+        now={nowPast}
       />
     )
-    // Lock icons should appear for locked matches
+    // Lock icons should appear for all group matches when deadline passed
     expect(screen.getAllByText('🔒').length).toBeGreaterThan(0)
   })
 
-  it('score inputs are disabled when match is locked', () => {
+  it('score inputs are disabled when group stage deadline passed (isOpen=false)', () => {
     render(
       <WkPouleForm
         matches={groupMatches}
         initialPredictions={emptyPredictions}
         initialIncidents={emptyIncidents}
-        isOpen
-        now={nowFuture}
+        isOpen={false}
+        now={nowPast}
       />
     )
     const scoreInputs = screen.getAllByRole('spinbutton')
@@ -210,20 +210,6 @@ describe('WkPouleForm', () => {
     scoreInputs.forEach((input) => {
       expect(input).not.toBeDisabled()
     })
-  })
-
-  it('incidentsDefinitief=true shows locked banner', () => {
-    const definitiefIncidents = { ...filledIncidents, is_definitief: true }
-    render(
-      <WkPouleForm
-        matches={groupMatches}
-        initialPredictions={emptyPredictions}
-        initialIncidents={definitiefIncidents}
-        isOpen
-        now={nowPast}
-      />
-    )
-    expect(screen.getByText(/definitief ingezonden/)).toBeInTheDocument()
   })
 
   it('isOpen=false shows closed banner', () => {
@@ -282,7 +268,7 @@ describe('WkPouleForm', () => {
     expect(screen.getByDisplayValue('Mbappe')).toBeInTheDocument()
   })
 
-  it('Concept opslaan calls upsert for matches and incidents', async () => {
+  it('Opslaan calls upsert for matches and incidents', async () => {
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -292,14 +278,14 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    fireEvent.click(screen.getByText(/Concept opslaan/))
+    fireEvent.click(screen.getByText(/💾 Opslaan/))
     await waitFor(() => {
       // match_predictions upsert + wk_incidents_predictions upsert
       expect(mockUpsert).toHaveBeenCalledTimes(2)
     })
   })
 
-  it('Concept opslaan shows "Concept opgeslagen" on success', async () => {
+  it('Opslaan shows "Opgeslagen" on success', async () => {
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -309,9 +295,9 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    fireEvent.click(screen.getByText(/Concept opslaan/))
+    fireEvent.click(screen.getByText(/💾 Opslaan/))
     await waitFor(() => {
-      expect(screen.getByText(/Concept opgeslagen/)).toBeInTheDocument()
+      expect(screen.getByText(/Opgeslagen/)).toBeInTheDocument()
     })
   })
 
@@ -331,35 +317,6 @@ describe('WkPouleForm', () => {
     expect(scoreInputs[1]).toHaveValue(2)
   })
 
-  it('Definitief inzenden shows confirmation dialog', () => {
-    render(
-      <WkPouleForm
-        matches={groupMatches}
-        initialPredictions={emptyPredictions}
-        initialIncidents={emptyIncidents}
-        isOpen
-        now={nowPast}
-      />
-    )
-    fireEvent.click(screen.getByText(/Definitief inzenden/))
-    expect(screen.getByText(/Weet je het zeker/)).toBeInTheDocument()
-  })
-
-  it('Annuleren hides confirmation dialog', () => {
-    render(
-      <WkPouleForm
-        matches={groupMatches}
-        initialPredictions={emptyPredictions}
-        initialIncidents={emptyIncidents}
-        isOpen
-        now={nowPast}
-      />
-    )
-    fireEvent.click(screen.getByText(/Definitief inzenden/))
-    fireEvent.click(screen.getByText('Annuleren'))
-    expect(screen.queryByText(/Weet je het zeker/)).not.toBeInTheDocument()
-  })
-
   it('stops saving when user not logged in', async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: null } } as any)
     render(
@@ -371,7 +328,7 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    fireEvent.click(screen.getByText(/Concept opslaan/))
+    fireEvent.click(screen.getByText(/💾 Opslaan/))
     await waitFor(() => {
       // upsert should NOT have been called when user is null
       expect(mockUpsert).not.toHaveBeenCalled()
@@ -389,7 +346,7 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    fireEvent.click(screen.getByText(/Concept opslaan/))
+    fireEvent.click(screen.getByText(/💾 Opslaan/))
     await waitFor(() => {
       expect(screen.getByText(/Match save failed/)).toBeInTheDocument()
     })
@@ -460,33 +417,12 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    fireEvent.click(screen.getByText(/Concept opslaan/))
+    fireEvent.click(screen.getByText(/💾 Opslaan/))
     await waitFor(() => {
       expect(screen.getByText(/Incidents DB error/)).toBeInTheDocument()
     })
   })
 
-  it('Ja inzenden triggers definitief save (sets incidentsDefinitief)', async () => {
-    render(
-      <WkPouleForm
-        matches={groupMatches}
-        initialPredictions={emptyPredictions}
-        initialIncidents={emptyIncidents}
-        isOpen
-        now={nowPast}
-      />
-    )
-    fireEvent.click(screen.getByText(/Definitief inzenden/))
-    fireEvent.click(screen.getByText('Ja, inzenden'))
-    await waitFor(() => {
-      // Both upserts called with definitief=true
-      const calls = mockUpsert.mock.calls as any[]
-      const incidentsCall = calls[1]?.[0]
-      expect(incidentsCall?.is_definitief).toBe(true)
-      // Locked banner should appear
-      expect(screen.getByText(/definitief ingezonden/)).toBeInTheDocument()
-    })
-  })
 
   it('PlayerSelect renders as dropdown when selectie prop is provided', () => {
     render(
@@ -557,16 +493,19 @@ describe('WkPouleForm', () => {
     expect((selects[0] as HTMLSelectElement).value).toBe('Netherlands')
   })
 
-  it('match with match_time uses time for kickoff calculation', () => {
-    const matchWithTime: Match[] = [
+  it('knockout match with match_time locks 15 min before kickoff', () => {
+    // Knockout match kicking off at 2026-07-10 18:00 Amsterdam time
+    // nowFuture = 2030-01-01 → past kickoff → locked
+    const knockoutMatchWithTime: Match[] = [
+      ...groupMatches, // needed so countriesSet is populated
       {
         id: 20,
-        match_number: 10,
-        stage: 'group',
-        group_name: 'A',
-        home_team: 'France',
-        away_team: 'Spain',
-        match_date: '2026-06-20',
+        match_number: 73,
+        stage: 'r32',
+        group_name: null,
+        home_team: 'Netherlands', // known team
+        away_team: 'Germany',     // known team (add to groupMatches below if needed)
+        match_date: '2026-07-10',
         match_time: '18:00:00',
         home_score: null,
         away_score: null,
@@ -576,14 +515,17 @@ describe('WkPouleForm', () => {
     ]
     render(
       <WkPouleForm
-        matches={matchWithTime}
+        matches={knockoutMatchWithTime}
         initialPredictions={emptyPredictions}
         initialIncidents={emptyIncidents}
         isOpen
+        adminOpen
         now={nowFuture}
       />
     )
-    // With nowFuture, all matches including those with match_time should be locked
+    // Expand the r32 section (collapsed by default)
+    fireEvent.click(screen.getByText('Ronde van 32'))
+    // Knockout match past kickoff should show lock icon
     expect(screen.getAllByText('🔒').length).toBeGreaterThan(0)
   })
 

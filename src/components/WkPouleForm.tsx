@@ -8,7 +8,8 @@ type Props = {
   matches: Match[];
   initialPredictions: MatchPrediction[];
   initialIncidents: WkIncidentsPrediction | null;
-  isOpen: boolean;
+  isOpen: boolean;     // group stage: admin toggle + deadline
+  adminOpen?: boolean; // knockout stage: admin toggle only (no deadline), defaults to true
   now: string; // ISO from server — avoids client clock drift
   selectie?: string[]; // admin-ingevulde NL selectie, leeg = vrij tekstveld
 };
@@ -130,6 +131,7 @@ export default function WkPouleForm({
   initialPredictions,
   initialIncidents,
   isOpen,
+  adminOpen = true,
   now,
   selectie = [],
 }: Props) {
@@ -173,21 +175,20 @@ export default function WkPouleForm({
     initialIncidents?.finale_team2 ?? "",
   );
 
-  const countries = useMemo(() => {
+  const countriesSet = useMemo(() => {
     const groupStageTeams = matches
       .filter((m) => m.stage === "group")
       .flatMap((m) => [m.home_team, m.away_team]);
-    return Array.from(new Set(groupStageTeams)).sort((a, b) => a.localeCompare(b, "nl"));
+    return new Set(groupStageTeams);
   }, [matches]);
-  const [incidentsDefinitief, setIncidentsDefinitief] = useState(
-    initialIncidents?.is_definitief ?? false,
+  const countries = useMemo(
+    () => Array.from(countriesSet).sort((a, b) => a.localeCompare(b, "nl")),
+    [countriesSet],
   );
-  const [confirmDefinitief, setConfirmDefinitief] = useState(false);
-
   const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<
-    "idle" | "draft" | "definitief" | "error"
-  >("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">(
+    "idle",
+  );
   const [errorMsg, setErrorMsg] = useState("");
 
   const [openGroups, setOpenGroups] = useState<Set<string>>(
@@ -211,7 +212,7 @@ export default function WkPouleForm({
     });
   };
 
-  const handleSave = async (definitief: boolean) => {
+  const handleSave = async () => {
     setSaving(true);
     setSaveStatus("idle");
     setErrorMsg("");
@@ -256,7 +257,6 @@ export default function WkPouleForm({
       wereldkampioen: wereldkampioen.trim(),
       finale_team1: finaleTeam1.trim(),
       finale_team2: finaleTeam2.trim(),
-      is_definitief: definitief,
       updated_at: new Date().toISOString(),
     };
 
@@ -271,16 +271,9 @@ export default function WkPouleForm({
       return;
     }
 
-    if (definitief) {
-      setIncidentsDefinitief(true);
-      setSaveStatus("definitief");
-    } else {
-      setSaveStatus("draft");
-      setTimeout(() => setSaveStatus("idle"), 4000);
-    }
-
+    setSaveStatus("saved");
+    setTimeout(() => setSaveStatus("idle"), 4000);
     setSaving(false);
-    setConfirmDefinitief(false);
   };
 
   // Group matches by stage + group
@@ -311,8 +304,7 @@ export default function WkPouleForm({
     }
   }
 
-  const canEdit = isOpen && !incidentsDefinitief;
-  // A match locks 5 minutes before kick-off
+  const canEdit = isOpen;
   const nowMs = new Date(now).getTime();
   const matchKickoff = (match: Match) => {
     if (match.match_time) {
@@ -320,8 +312,16 @@ export default function WkPouleForm({
     }
     return new Date(match.match_date).getTime();
   };
-  const matchIsOpen = (match: Match) =>
-    isOpen && matchKickoff(match) - 5 * 60 * 1000 > nowMs;
+  const knockoutTeamsKnown = (match: Match) =>
+    countriesSet.has(match.home_team) && countriesSet.has(match.away_team);
+  const matchIsOpen = (match: Match) => {
+    if (match.stage === "group") {
+      // Group stage: open until global deadline, no per-match kickoff lock
+      return isOpen;
+    }
+    // Knockout: no global deadline, teams must be known, lock 15 min before kick-off
+    return adminOpen && knockoutTeamsKnown(match) && matchKickoff(match) - 15 * 60 * 1000 > nowMs;
+  };
   const filledMatches = Array.from(scores.values()).filter(
     (s) => s.home !== 0 || s.away !== 0,
   ).length;
@@ -378,13 +378,7 @@ export default function WkPouleForm({
         )}
       </div>
 
-      {incidentsDefinitief && (
-        <div className="bg-green-50 border border-green-300 text-green-800 px-4 py-3 rounded-lg text-sm font-medium">
-          ✅ Voorspelling definitief ingezonden. Wedstrijdscores en incidenten
-          zijn vergrendeld.
-        </div>
-      )}
-      {!isOpen && !incidentsDefinitief && (
+      {!isOpen && (
         <div className="bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-lg text-sm font-medium">
           ⚠️ WK Poule is gesloten. Voorspellingen kunnen niet meer aangepast
           worden.
@@ -440,7 +434,7 @@ export default function WkPouleForm({
                         </span>
                       )}
                     </span>
-                    <span className="flex-1 text-sm font-medium text-right text-gray-800 truncate">
+                    <span className={`flex-1 text-sm font-medium text-right truncate ${match.stage !== "group" && !knockoutTeamsKnown(match) ? "text-gray-400 italic" : "text-gray-800"}`}>
                       {match.home_team}
                     </span>
                     <div className="flex items-center gap-1 shrink-0">
@@ -456,11 +450,13 @@ export default function WkPouleForm({
                         disabled={!matchIsOpen(match)}
                       />
                     </div>
-                    <span className="flex-1 text-sm font-medium text-left text-gray-800 truncate">
+                    <span className={`flex-1 text-sm font-medium text-left truncate ${match.stage !== "group" && !knockoutTeamsKnown(match) ? "text-gray-400 italic" : "text-gray-800"}`}>
                       {match.away_team}
                     </span>
-                    {!matchIsOpen(match) && isOpen && (
-                      <span className="text-xs text-gray-400 shrink-0">🔒</span>
+                    {!matchIsOpen(match) && (
+                      match.stage !== "group" && !knockoutTeamsKnown(match)
+                        ? <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">nog niet bekend</span>
+                        : <span className="text-xs text-gray-400 shrink-0">🔒</span>
                     )}
                   </div>
                 );
@@ -591,56 +587,19 @@ export default function WkPouleForm({
         </div>
       </div>
 
-      {/* Save buttons */}
+      {/* Save button */}
       {canEdit && (
         <div className="flex flex-col items-center gap-3">
-          {!confirmDefinitief ? (
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <button
-                onClick={() => handleSave(false)}
-                disabled={saving}
-                className="btn-secondary text-base px-8 py-3 w-full sm:w-auto"
-              >
-                {saving ? "Opslaan..." : "💾 Concept opslaan"}
-              </button>
-              <button
-                onClick={() => setConfirmDefinitief(true)}
-                disabled={saving}
-                className="btn-primary text-base px-8 py-3 w-full sm:w-auto"
-              >
-                📨 Definitief inzenden
-              </button>
-            </div>
-          ) : (
-            <div className="bg-amber-50 border border-amber-300 rounded-xl p-5 w-full max-w-md text-center">
-              <p className="font-semibold text-amber-900 mb-1">
-                Weet je het zeker?
-              </p>
-              <p className="text-sm text-amber-700 mb-4">
-                Na definitief inzenden kun je de{" "}
-                <strong>incidenten en topscorer niet meer aanpassen</strong>.
-                Wedstrijdscores ook niet.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setConfirmDefinitief(false)}
-                  className="btn-secondary px-6 py-2"
-                >
-                  Annuleren
-                </button>
-                <button
-                  onClick={() => handleSave(true)}
-                  disabled={saving}
-                  className="btn-primary px-6 py-2"
-                >
-                  {saving ? "Inzenden..." : "Ja, inzenden"}
-                </button>
-              </div>
-            </div>
-          )}
-          {saveStatus === "draft" && (
+          <button
+            onClick={() => handleSave()}
+            disabled={saving}
+            className="btn-primary text-base px-8 py-3 w-full sm:w-auto"
+          >
+            {saving ? "Opslaan..." : "💾 Opslaan"}
+          </button>
+          {saveStatus === "saved" && (
             <div className="bg-blue-50 border border-blue-300 text-blue-700 px-6 py-3 rounded-lg font-medium">
-              Concept opgeslagen ✅
+              Opgeslagen ✅
             </div>
           )}
           {saveStatus === "error" && (

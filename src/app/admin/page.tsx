@@ -7,8 +7,11 @@ import AdminMatchResults from "@/components/AdminMatchResults";
 import AdminSyncLogs from "@/components/AdminSyncLogs";
 import AdminTabsLayout from "@/components/AdminTabsLayout";
 import AdminFlappyCredits from "@/components/AdminFlappyCredits";
+import AdminDeelnemersToggle from "@/components/AdminDeelnemersToggle";
 import AdminStickerbalSettings from "@/components/AdminStickerbalSettings";
 import AdminRecalcWkScores from "@/components/AdminRecalcWkScores";
+import AdminFootballHealth from "@/components/AdminFootballHealth";
+import AdminDailySyncTest from "@/components/AdminDailySyncTest";
 import PageHeader from "@/components/PageHeader";
 import type {
   MasterUitslag,
@@ -87,6 +90,18 @@ export default async function AdminPage() {
       .then((res) => ({ data: res.error ? [] : res.data })), // tabel bestaat mogelijk nog niet
   ]);
 
+  const groupMatchIds = ((matchesRaw ?? []) as Match[])
+    .filter((m) => m.stage === "group")
+    .map((m) => m.id);
+
+  const { data: groepPredictionsRaw } = groupMatchIds.length > 0
+    ? await supabase
+        .from("match_predictions")
+        .select("user_id")
+        .in("match_id", groupMatchIds)
+        .or("home_score.gt.0,away_score.gt.0")
+    : { data: [] };
+
   const uitslag = uitslagRaw as MasterUitslag | null;
   const predictions = (predictionsRaw ?? []) as Pick<
     Prediction,
@@ -122,6 +137,21 @@ export default async function AdminPage() {
 
   const aantalIngevuld = deelnemers.filter((d) => d.heeftIngevuld).length;
 
+  const groepIngevuldSet = new Set(
+    ((groepPredictionsRaw ?? []) as { user_id: string }[]).map((r) => r.user_id),
+  );
+  const groepDeelnemers = profiles
+    .filter((p) => p.is_deelnemer !== false)
+    .map((p) => ({
+      id: p.id,
+      display_name: p.display_name,
+      heeftIngevuld: groepIngevuldSet.has(p.id),
+    }))
+    .sort((a, b) => {
+      if (a.heeftIngevuld !== b.heeftIngevuld) return a.heeftIngevuld ? -1 : 1;
+      return a.display_name.localeCompare(b.display_name, "nl");
+    });
+
   const errorLogs = syncLogs.filter((l) => l.status === "error").length;
 
   return (
@@ -129,7 +159,7 @@ export default async function AdminPage() {
       <PageHeader
         title="Admin Dashboard"
         badge="Admin"
-        subtitle={`${aantalIngevuld} / ${deelnemers.length} deelnemers hebben de pre-pool ingevuld`}
+        subtitle={`Pre-pool: ${aantalIngevuld}/${deelnemers.length} · Groepsfase: ${groepDeelnemers.filter((d) => d.heeftIngevuld).length}/${groepDeelnemers.length} ingevuld`}
       />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <AdminTabsLayout
@@ -165,64 +195,14 @@ export default async function AdminPage() {
 
             {/* Deelnemers */}
             <div className="card">
-              <h2 className="section-title">
-                Deelnemers Pre-pool — {aantalIngevuld} / {deelnemers.length}{" "}
-                ingevuld
-              </h2>
+              <h2 className="section-title">Deelnemers</h2>
               {deelnemers.length === 0 ? (
                 <p className="text-gray-500 text-sm">Nog geen deelnemers.</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 px-3 text-gray-600 font-medium">
-                          Naam
-                        </th>
-                        <th className="text-center py-2 px-3 text-gray-600 font-medium">
-                          Status
-                        </th>
-                        <th className="text-right py-2 px-3 text-gray-600 font-medium">
-                          Ingevuld op
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {deelnemers.map((d) => (
-                        <tr
-                          key={d.id}
-                          className="border-b border-gray-100 hover:bg-gray-50"
-                        >
-                          <td className="py-2 px-3 font-medium text-gray-900">
-                            {d.display_name}
-                          </td>
-                          <td className="py-2 px-3 text-center">
-                            {d.heeftIngevuld ? (
-                              <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                                ✓ Ingevuld
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full">
-                                Niet ingevuld
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 text-right text-gray-500">
-                            {d.ingevuldOp
-                              ? new Date(d.ingevuldOp).toLocaleString("nl-NL", {
-                                  day: "numeric",
-                                  month: "short",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  timeZone: "Europe/Amsterdam",
-                                })
-                              : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <AdminDeelnemersToggle
+                  preDeelnemers={deelnemers}
+                  groepDeelnemers={groepDeelnemers}
+                />
               )}
             </div>
 
@@ -274,13 +254,25 @@ export default async function AdminPage() {
           </div>
 
           {/* Tab: Berichten */}
-          <div className="card">
-            <h2 className="section-title">Synchronisatie berichten</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Overzicht van alle uitslag-syncs. De cronjob draait dagelijks om
-              10:00 (CEST). Tijdens het WK elke 30 minuten.
-            </p>
-            <AdminSyncLogs logs={syncLogs} />
+          <div className="grid gap-8">
+            <div className="card">
+              <h2 className="section-title">Football-Data.org API</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Controleer of de externe API bereikbaar is en hoeveel quota er nog over is.
+              </p>
+              <AdminFootballHealth />
+            </div>
+            <div className="card">
+              <h2 className="section-title">Synchronisatie berichten</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Overzicht van alle uitslag-syncs. De cronjob draait dagelijks om
+                10:00 (CEST). Tijdens het WK elke 30 minuten.
+              </p>
+              <div className="mb-6">
+                <AdminDailySyncTest />
+              </div>
+              <AdminSyncLogs logs={syncLogs} />
+            </div>
           </div>
         </AdminTabsLayout>
       </div>
