@@ -18,8 +18,8 @@ export async function POST() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: uitslag, error: uitslagError } = await admin.from('master_uitslag').select('*').eq('id', 1).single()
-  if (uitslagError || !uitslag) return NextResponse.json({ error: 'Master uitslag niet gevonden.' }, { status: 400 })
+  const { data: uitslag, error: uitslagError } = await supabase.from('master_uitslag').select('*').eq('id', 1).single()
+  if (uitslagError || !uitslag) return NextResponse.json({ error: uitslagError ? `Master uitslag fout: ${uitslagError.message} (${uitslagError.code})` : 'Master uitslag niet gevonden.' }, { status: 400 })
 
   const { data: predictions, error: predError } = await admin.from('predictions').select('*')
   if (predError) return NextResponse.json({ error: predError.message }, { status: 500 })
