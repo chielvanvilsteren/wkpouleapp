@@ -35,13 +35,27 @@ export async function POST() {
   const { error: upsertError } = await supabase.from('scores').upsert(upsertData, { onConflict: 'user_id' })
   if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
 
+  // Grant Flappy Bal credits: delete old pre-poule grants, insert fresh ones
+  await supabase.from('flappy_credit_grants').delete().eq('note', 'pre-poule').eq('season', 2)
+  const creditGrants = upsertData
+    .filter((row) => row.totaal > 0)
+    .map((row) => ({
+      user_id: row.user_id,
+      granted_by: user.id,
+      amount: row.totaal,
+      note: 'pre-poule',
+      season: 2,
+    }))
+  if (creditGrants.length > 0) {
+    await supabase.from('flappy_credit_grants').insert(creditGrants)
+  }
+
   // Push notifications fire-and-forget
   for (const row of upsertData) {
-    const credits = row.selectie_punten + row.basis_xi_punten
-    if (credits > 0) {
+    if (row.totaal > 0) {
       sendPushToUser(supabase, row.user_id, {
         title: '⚽ Pre Poule scores bijgewerkt!',
-        body: `Jouw score: ${row.totaal} punten · Je hebt ${credits} Flappy Bal credits verdiend`,
+        body: `Jouw score: ${row.totaal} punten · Je hebt ${row.totaal} Flappy Bal credits verdiend`,
         url: '/ranglijst',
       }).catch(() => {/* ignore */})
     }
