@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import type { Database } from '@/types'
 
 export async function GET() {
   const supabase = await createClient()
@@ -16,12 +14,7 @@ export async function GET() {
 
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const admin = createServiceClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
-
-  const { data } = await admin
+  const { data } = await supabase
     .from('flappy_suspicious_attempts')
     .select('id, user_id, session_id, submitted_score, server_elapsed_ms, minimum_ms, client_duration_ms, fps, created_at')
     .order('created_at', { ascending: false })
@@ -34,7 +27,7 @@ export async function GET() {
   if (!data) return NextResponse.json([])
 
   const userIds = Array.from(new Set(data.map(r => r.user_id)))
-  const { data: profiles } = await admin
+  const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name')
     .in('id', userIds)
@@ -65,11 +58,6 @@ export async function DELETE(req: Request) {
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
-  const admin = createServiceClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
-
-  await admin.from('flappy_suspicious_attempts').delete().eq('id', id)
+  await supabase.from('flappy_suspicious_attempts').delete().eq('id', id)
   return NextResponse.json({ ok: true })
 }

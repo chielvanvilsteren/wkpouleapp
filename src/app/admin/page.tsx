@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import type { Database } from "@/types";
 import AdminUitslagForm from "@/components/AdminUitslagForm";
 import AdminToggles from "@/components/AdminToggles";
@@ -157,11 +156,7 @@ export default async function AdminPage() {
 
   const errorLogs = syncLogs.filter((l) => l.status === "error").length;
 
-  const adminClient = createServiceClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-  const { count: suspiciousCount } = await adminClient
+  const { count: suspiciousCount } = await supabase
     .from("flappy_suspicious_attempts")
     .select("id", { count: "exact", head: true });
 

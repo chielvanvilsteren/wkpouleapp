@@ -1,8 +1,7 @@
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import DisplayRefresh from "./DisplayRefresh";
 import DisplayToggle from "./DisplayToggle";
-import type { Database, Profile, Score, WkScore } from "@/types";
+import type { Profile, Score, WkScore } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -56,18 +55,13 @@ export default async function DisplayPage() {
   >[];
   const userIds = profiles.map((p) => p.id);
 
-  const admin = createServiceClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-
   const preIngevuldSet = new Set<string>();
   const wkIngevuldSet = new Set<string>();
 
   if (userIds.length > 0 && (!preDeadlineVerstreken || !wkDeadlineVerstreken)) {
     await Promise.all([
       !preDeadlineVerstreken
-        ? admin
+        ? supabase
             .from("predictions")
             .select("user_id")
             .in("user_id", userIds)
@@ -76,7 +70,7 @@ export default async function DisplayPage() {
             })
         : Promise.resolve(),
       !wkDeadlineVerstreken
-        ? admin
+        ? supabase
             .from("wk_incidents_predictions")
             .select("user_id")
             .in("user_id", userIds)
@@ -117,15 +111,10 @@ export default async function DisplayPage() {
 
   // Flappy Bal: top-10 best scores, all users (not deelnemers-only)
   // Untyped client — flappy_scores is not in the Database type
-  const flappyAdmin = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-
   type FlappyRow = { user_id: string; display_name: string; best_score: number };
   const flappyEntries: FlappyRow[] = [];
   {
-    const { data: allScores } = await flappyAdmin
+    const { data: allScores } = await (supabase as any)
       .from("flappy_scores")
       .select("user_id, score")
       .order("score", { ascending: false })
@@ -139,7 +128,7 @@ export default async function DisplayPage() {
     }
 
     if (bestMap.size > 0) {
-      const { data: allProfiles } = await flappyAdmin
+      const { data: allProfiles } = await supabase
         .from("profiles")
         .select("id, display_name")
         .in("id", Array.from(bestMap.keys()));

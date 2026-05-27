@@ -1,7 +1,5 @@
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import type { Database } from '@/types'
 import { normalize, matchResult } from '@/lib/scoring-utils'
 import { sendPushToUser } from '@/lib/push'
 
@@ -13,11 +11,6 @@ export async function POST() {
   const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const admin = createServiceClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
   const [
     { data: finishedMatches },
     { data: allPredictions },
@@ -25,11 +18,11 @@ export async function POST() {
     { data: wkIncidents },
     { data: masterUitslag },
   ] = await Promise.all([
-    admin.from('matches').select('*').eq('is_finished', true),
-    admin.from('match_predictions').select('*'),
-    admin.from('wk_incidents_uitslag').select('*').eq('id', 1).single(),
-    admin.from('wk_incidents_predictions').select('*'),
-    admin.from('master_uitslag').select('wk_scores_zichtbaar').eq('id', 1).single(),
+    supabase.from('matches').select('*').eq('is_finished', true),
+    supabase.from('match_predictions').select('*'),
+    supabase.from('wk_incidents_uitslag').select('*').eq('id', 1).single(),
+    supabase.from('wk_incidents_predictions').select('*'),
+    supabase.from('master_uitslag').select('wk_scores_zichtbaar').eq('id', 1).single(),
   ])
 
   if (!finishedMatches || !allPredictions || !wkIncidents) {
@@ -159,7 +152,7 @@ export async function POST() {
     return NextResponse.json({ message: 'Geen voorspellingen om te berekenen.' })
   }
 
-  const { error } = await admin.from('wk_scores').upsert(upsertData, { onConflict: 'user_id' })
+  const { error } = await supabase.from('wk_scores').upsert(upsertData, { onConflict: 'user_id' })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Push notifications fire-and-forget
