@@ -39,7 +39,7 @@ function getDifficulty(score: number) {
   }
 }
 
-type Screen = 'intro' | 'menu' | 'playing' | 'gameover' | 'scoreboard'
+type Screen = 'intro' | 'menu' | 'playing' | 'gameover' | 'saveerror' | 'scoreboard'
 
 interface Pipe { x: number; gapTop: number; gapBot: number; passed: boolean }
 
@@ -97,14 +97,15 @@ async function startSession(): Promise<{ sessionId: string; newBalance: number }
 }
 
 
-async function saveScore(sessionId: string, score: number, fps: number | null, duration_ms: number | null): Promise<void> {
+async function saveScore(sessionId: string, score: number, fps: number | null, duration_ms: number | null): Promise<boolean> {
   try {
-    await fetch('/api/flappy-credits', {
+    const res = await fetch('/api/flappy-credits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'save', sessionId, score, fps, duration_ms }),
     })
-  } catch { /* ignore */ }
+    return res.ok
+  } catch { return false }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -717,8 +718,9 @@ export default function FootballGame({
           deathTimer = setTimeout(async () => {
             if (!testMode && sessionIdRef.current) {
               setSaving(true)
-              await saveScore(sessionIdRef.current, gs.score, gameFpsRef.current, gameDurationRef.current)
+              const ok = await saveScore(sessionIdRef.current, gs.score, gameFpsRef.current, gameDurationRef.current)
               setSaving(false)
+              if (!ok) { setScreen('saveerror'); return }
               sessionIdRef.current = null
             }
             setScreen('gameover')
@@ -888,6 +890,40 @@ export default function FootballGame({
                 🔧 Test spelen (geen credit, score niet opgeslagen)
               </button>
             )}
+          </div>
+        )}
+
+        {screen === 'saveerror' && (
+          <div className="flex flex-col items-center gap-3 px-6 py-4 text-white h-full justify-center min-h-0">
+            <div className="text-5xl">⚠️</div>
+            <h2 className="text-xl font-black">Score niet opgeslagen</h2>
+            <div className="text-center">
+              <div className="text-white/50 text-xs mb-0.5">Score</div>
+              <div className="text-6xl font-black text-orange-400">{finalScore}</div>
+            </div>
+            <p className="text-white/50 text-sm text-center">Verbindingsfout. Credit is nog beschikbaar.</p>
+            <div className="flex gap-3">
+              <button
+                disabled={saving}
+                onClick={async () => {
+                  if (!sessionIdRef.current) { setScreen('gameover'); return }
+                  setSaving(true)
+                  const ok = await saveScore(sessionIdRef.current, finalScore, gameFpsRef.current, gameDurationRef.current)
+                  setSaving(false)
+                  if (ok) { sessionIdRef.current = null; setScreen('gameover') }
+                }}
+                className="bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-black px-8 py-3 rounded-xl transition-colors"
+              >
+                {saving ? 'Bezig…' : 'Opnieuw proberen'}
+              </button>
+              <button
+                disabled={saving}
+                onClick={() => { sessionIdRef.current = null; setScreen('gameover') }}
+                className="bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white/50 font-semibold px-5 py-3 rounded-xl transition-colors"
+              >
+                Overslaan
+              </button>
+            </div>
           </div>
         )}
 
