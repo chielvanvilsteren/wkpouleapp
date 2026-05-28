@@ -39,7 +39,7 @@ function getDifficulty(score: number) {
   }
 }
 
-type Screen = 'intro' | 'menu' | 'playing' | 'saveprompt' | 'gameover' | 'scoreboard'
+type Screen = 'intro' | 'menu' | 'playing' | 'gameover' | 'scoreboard'
 
 interface Pipe { x: number; gapTop: number; gapBot: number; passed: boolean }
 
@@ -714,7 +714,15 @@ export default function FootballGame({
           gs.dead = true
           gameDurationRef.current = gameStartTimeRef.current ? Date.now() - gameStartTimeRef.current : null
           setFinalScore(gs.score)
-          deathTimer = setTimeout(() => setScreen(testMode ? 'gameover' : 'saveprompt'), 950)
+          deathTimer = setTimeout(async () => {
+            if (!testMode && sessionIdRef.current) {
+              setSaving(true)
+              await saveScore(sessionIdRef.current, gs.score, gameFpsRef.current, gameDurationRef.current)
+              setSaving(false)
+              sessionIdRef.current = null
+            }
+            setScreen('gameover')
+          }, 950)
         }
 
         gs.tick++
@@ -880,43 +888,6 @@ export default function FootballGame({
                 🔧 Test spelen (geen credit, score niet opgeslagen)
               </button>
             )}
-          </div>
-        )}
-
-        {screen === 'saveprompt' && (
-          <div className="flex flex-col items-center gap-3 px-6 py-4 text-white h-full overflow-y-auto justify-center min-h-0">
-            <div className="text-5xl">{finalScore >= 15 ? '🏆' : finalScore >= 7 ? '👍' : '😢'}</div>
-            <h2 className="text-xl font-black">Game Over!</h2>
-            <div className="text-center">
-              <div className="text-white/50 text-xs mb-0.5">Score</div>
-              <div className="text-6xl font-black text-orange-400">{finalScore}</div>
-            </div>
-            <div className="bg-white/5 rounded-xl px-5 py-2 text-center">
-              <p className="text-white/60 text-sm">Wil je je score opslaan?</p>
-              <p className="text-white/30 text-xs mt-0.5">Credit is al verbruikt</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                disabled={saving}
-                onClick={async () => {
-                  if (!sessionIdRef.current) { setScreen('gameover'); return }
-                  setSaving(true)
-                  await saveScore(sessionIdRef.current, finalScore, gameFpsRef.current, gameDurationRef.current)
-                  setSaving(false)
-                  setScreen('gameover')
-                }}
-                className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-black px-8 py-3 rounded-xl transition-colors"
-              >
-                {saving ? 'Bezig…' : '✓ Opslaan'}
-              </button>
-              <button
-                disabled={saving}
-                onClick={() => setScreen('gameover')}
-                className="bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white/60 font-semibold px-8 py-3 rounded-xl transition-colors"
-              >
-                ✗ Niet opslaan
-              </button>
-            </div>
           </div>
         )}
 

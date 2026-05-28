@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { minGameMs } from '@/lib/flappy-physics'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -88,7 +87,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ sessionId, newBalance: balance.available })
   }
 
-  // ── Save: RLS verifies session ownership, UNIQUE prevents replay ─────────
+  // ── Save: all validation + insert handled by SECURITY DEFINER function ──
   if (action === 'save') {
     const sessionId = body?.sessionId as string | undefined
     const score = Number(body?.score)
@@ -99,53 +98,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ongeldige invoer' }, { status: 400 })
     }
 
-    // Tijdvalidatie: server-side elapsed moet >= minGameMs(score) zijn (10% marge)
-    if (score > 0) {
-      const { data: session } = await supabase
-        .from('flappy_credit_log')
-        .select('played_at')
-        .eq('session_id', sessionId)
-        .eq('user_id', user.id)
-        .single()
+    const { error: saveErr } = await supabase.rpc('save_flappy_score', {
+      p_session_id: sessionId,
+      p_score: score,
+      p_fps: fps,
+      p_duration_ms: duration_ms,
+    })
 
-      if (!session) {
-        return NextResponse.json({ error: 'Ongeldige sessie' }, { status: 403 })
-      }
-
-      const serverElapsedMs = Date.now() - new Date(session.played_at).getTime()
-      const minimumMs = minGameMs(score) * 0.9
-
-      const isSuspicious =
-        serverElapsedMs < minimumMs ||
-        (duration_ms != null && duration_ms < minimumMs)
-
-      if (isSuspicious) {
-        await supabase.from('flappy_suspicious_attempts').insert({
-          user_id: user.id,
-          session_id: sessionId,
-          submitted_score: score,
-          server_elapsed_ms: serverElapsedMs,
-          minimum_ms: Math.round(minimumMs),
-          client_duration_ms: duration_ms,
-          fps,
-        })
-        return NextResponse.json({ error: 'Score niet mogelijk in de speeltijd' }, { status: 403 })
-      }
-    }
-
-    const { error: scoreErr } = await supabase
-      .from('flappy_scores')
-      .insert({ user_id: user.id, score, credit_log_id: sessionId, fps, duration_ms })
-
-    if (scoreErr) {
-      if (scoreErr.code === '23505') {
-        return NextResponse.json({ error: 'Score al opgeslagen voor dit potje' }, { status: 409 })
-      }
-      // RLS rejection (session not owned) returns 42501 / new row violates RLS
-      if (scoreErr.code === '42501' || scoreErr.message.includes('row-level security')) {
-        return NextResponse.json({ error: 'Ongeldige sessie' }, { status: 403 })
-      }
-      return NextResponse.json({ error: scoreErr.message }, { status: 500 })
+    if (saveErr) {
+      if (saveErr.code === 'P0001') return NextResponse.json({ error: 'Ongeldige sessie' }, { status: 403 })
+      if (saveErr.code === 'P0002') return NextResponse.json({ error: 'Sessie verlopen' }, { status: 403 })
+      if (saveErr.code === 'P0003') return NextResponse.json({ error: 'Score niet mogelijk in de speeltijd' }, { status: 403 })
+      if (saveErr.code === '23505') return NextResponse.json({ error: 'Score al opgeslagen voor dit potje' }, { status: 409 })
+      return NextResponse.json({ error: saveErr.message }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
