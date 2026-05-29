@@ -88,7 +88,7 @@ export async function GET() {
     }
 
     const totalEarned = wkCredits + adminGrants
-    const available = Math.max(0, totalEarned - spentCount)
+    const available = totalEarned - spentCount
 
     return {
       id: profile.id,
