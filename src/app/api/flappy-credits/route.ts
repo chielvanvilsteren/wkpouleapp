@@ -50,7 +50,7 @@ async function getBalance(supabase: SupabaseClient, userId: string) {
 
   const totalEarned = wkCredits + adminGrants
   const totalSpent = spent ?? 0
-  const available = Math.max(0, totalEarned - totalSpent)
+  const available = totalEarned - totalSpent
 
   return { available, totalEarned, totalSpent, wkCredits, adminGrants }
 }
