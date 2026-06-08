@@ -235,7 +235,40 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    expect(screen.getByText(/0 \/ 2 wedstrijden ingevuld/)).toBeInTheDocument()
+    expect(screen.getByText(/0 \/ 2 groepswedstrijden ingevuld/)).toBeInTheDocument()
+  })
+
+  it('counts saved 0-0 group predictions as filled', () => {
+    const initialPredictions: MatchPrediction[] = [
+      { id: 'pred-1', user_id: 'user-1', match_id: 1, home_score: 0, away_score: 0 },
+    ]
+    render(
+      <WkPouleForm
+        matches={groupMatches}
+        initialPredictions={initialPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    expect(screen.getByText(/1 \/ 2 groepswedstrijden ingevuld/)).toBeInTheDocument()
+  })
+
+  it('does not count saved knockout predictions in group progress', () => {
+    const matches = [...groupMatches, ...finalMatch]
+    const initialPredictions: MatchPrediction[] = [
+      { id: 'pred-1', user_id: 'user-1', match_id: 10, home_score: 2, away_score: 1 },
+    ]
+    render(
+      <WkPouleForm
+        matches={matches}
+        initialPredictions={initialPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    expect(screen.getByText(/0 \/ 2 groepswedstrijden ingevuld/)).toBeInTheDocument()
   })
 
   it('shows incidents inputs', () => {
@@ -298,6 +331,25 @@ describe('WkPouleForm', () => {
     fireEvent.click(screen.getByText(/💾 Opslaan/))
     await waitFor(() => {
       expect(screen.getByText(/Opgeslagen/)).toBeInTheDocument()
+    })
+  })
+
+  it('counts default 0-0 group matches as filled after saving', async () => {
+    render(
+      <WkPouleForm
+        matches={groupMatches}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    expect(screen.getByText(/0 \/ 2 groepswedstrijden ingevuld/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText(/💾 Opslaan/))
+
+    await waitFor(() => {
+      expect(screen.getByText(/2 \/ 2 groepswedstrijden ingevuld/)).toBeInTheDocument()
     })
   })
 

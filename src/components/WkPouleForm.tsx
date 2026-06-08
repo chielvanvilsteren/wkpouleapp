@@ -149,6 +149,9 @@ export default function WkPouleForm({
       matches.map((m) => [m.id, initMap.get(m.id) ?? { home: 0, away: 0 }]),
     ),
   );
+  const [savedPredictionMatchIds, setSavedPredictionMatchIds] = useState(
+    () => new Set(initialPredictions.map((p) => p.match_id)),
+  );
 
   const [rodeKaart, setRodeKaart] = useState(
     initialIncidents?.rode_kaart ?? "",
@@ -271,6 +274,7 @@ export default function WkPouleForm({
       return;
     }
 
+    setSavedPredictionMatchIds(new Set(matches.map((m) => m.id)));
     setSaveStatus("saved");
     setTimeout(() => setSaveStatus("idle"), 4000);
     setSaving(false);
@@ -322,9 +326,11 @@ export default function WkPouleForm({
     // Knockout: no global deadline, teams must be known, lock 15 min before kick-off
     return adminOpen && knockoutTeamsKnown(match) && matchKickoff(match) - 15 * 60 * 1000 > nowMs;
   };
-  const filledMatches = Array.from(scores.values()).filter(
-    (s) => s.home !== 0 || s.away !== 0,
+  const progressMatches = matches.filter((m) => m.stage === "group");
+  const filledMatches = progressMatches.filter((m) =>
+    savedPredictionMatchIds.has(m.id),
   ).length;
+  const progressTotal = progressMatches.length;
 
   const [puntenOpen, setPuntenOpen] = useState(false);
 
@@ -391,12 +397,12 @@ export default function WkPouleForm({
           <div
             className="bg-oranje-500 h-2.5 rounded-full transition-all duration-300"
             style={{
-              width: `${Math.round((filledMatches / matches.length) * 100)}%`,
+              width: `${progressTotal === 0 ? 0 : Math.round((filledMatches / progressTotal) * 100)}%`,
             }}
           />
         </div>
         <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-          {filledMatches} / {matches.length} wedstrijden ingevuld
+          {filledMatches} / {progressTotal} groepswedstrijden ingevuld
         </span>
       </div>
 
