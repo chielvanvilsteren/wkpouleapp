@@ -1,4 +1,4 @@
-import { normalize, countMatches, matchResult, toDateInput, toArray } from '@/lib/scoring-utils'
+import { normalize, countMatches, matchResult, matchPredictionPoints, flappyPredictionTokens, toDateInput, toArray } from '@/lib/scoring-utils'
 
 describe('normalize', () => {
   it('returns empty string for null', () => {
@@ -92,6 +92,59 @@ describe('matchResult', () => {
 
   it('handles large scores', () => {
     expect(matchResult(10, 9)).toBe('H')
+  })
+})
+
+describe('matchPredictionPoints', () => {
+  it('awards 3 points for exact score', () => {
+    expect(matchPredictionPoints(
+      { home_score: 2, away_score: 1 },
+      { home_score: 2, away_score: 1 },
+    )).toBe(3)
+  })
+
+  it('awards 1 point for correct result', () => {
+    expect(matchPredictionPoints(
+      { home_score: 1, away_score: 0 },
+      { home_score: 3, away_score: 2 },
+    )).toBe(1)
+  })
+
+  it('awards 0 points for wrong result', () => {
+    expect(matchPredictionPoints(
+      { home_score: 0, away_score: 1 },
+      { home_score: 2, away_score: 1 },
+    )).toBe(0)
+  })
+
+  it('awards 0 points while the actual score is incomplete', () => {
+    expect(matchPredictionPoints(
+      { home_score: 1, away_score: 1 },
+      { home_score: null, away_score: 1 },
+    )).toBe(0)
+  })
+})
+
+describe('flappyPredictionTokens', () => {
+  it('awards 5 tokens for exact score', () => {
+    expect(flappyPredictionTokens(
+      { home_score: 2, away_score: 1 },
+      { home_score: 2, away_score: 1 },
+    )).toBe(5)
+  })
+
+  it('awards 2 tokens for correct result', () => {
+    expect(flappyPredictionTokens(
+      { home_score: 1, away_score: 0 },
+      { home_score: 3, away_score: 2 },
+    )).toBe(2)
+  })
+
+  it('awards 0 tokens for wrong result', () => {
+    expect(flappyPredictionTokens(
+      { home_score: 0, away_score: 1 },
+      { home_score: 2, away_score: 1 },
+    )).toBe(0)
   })
 })
 

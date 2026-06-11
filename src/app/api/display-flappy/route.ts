@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { getFlappyDagtokens } from "@/lib/flappy-dagtokens";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,14 @@ export async function GET() {
 
   if (bestMap.size === 0) return NextResponse.json([]);
 
-  const { data: profiles, error: profilesError } = await admin
-    .from("profiles")
-    .select("id, display_name")
-    .in("id", Array.from(bestMap.keys()));
+  const userIds = Array.from(bestMap.keys());
+  const [{ data: profiles, error: profilesError }, dagtokens] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", userIds),
+    getFlappyDagtokens(userIds),
+  ]);
 
   if (profilesError) {
     return NextResponse.json({ error: profilesError.message }, { status: 500 });
@@ -50,6 +55,7 @@ export async function GET() {
       display_name: nameMap.get(uid) ?? "Onbekend",
       best_score: score,
       best_fps: fps,
+      dagtokens: dagtokens.get(uid) ?? 0,
     }));
 
   return NextResponse.json(result);

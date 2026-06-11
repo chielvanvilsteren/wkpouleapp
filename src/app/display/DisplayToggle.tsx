@@ -22,7 +22,7 @@ export default function DisplayToggle({
               : "bg-white/20 text-white hover:bg-white/30"
           }`}
         >
-          🏆 Poule Scores
+          🏆 Poulescores
         </button>
         <button
           onClick={() => setMode("flappy")}

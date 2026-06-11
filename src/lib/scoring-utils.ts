@@ -13,6 +13,26 @@ export function matchResult(home: number, away: number): 'H' | 'D' | 'A' {
   return 'D'
 }
 
+export function matchPredictionPoints(
+  prediction: { home_score: number; away_score: number },
+  actual: { home_score: number | null; away_score: number | null },
+): number {
+  if (actual.home_score === null || actual.away_score === null) return 0
+  if (prediction.home_score === actual.home_score && prediction.away_score === actual.away_score) return 3
+  if (matchResult(prediction.home_score, prediction.away_score) === matchResult(actual.home_score, actual.away_score)) return 1
+  return 0
+}
+
+export function flappyPredictionTokens(
+  prediction: { home_score: number; away_score: number },
+  actual: { home_score: number | null; away_score: number | null },
+): number {
+  if (actual.home_score === null || actual.away_score === null) return 0
+  if (prediction.home_score === actual.home_score && prediction.away_score === actual.away_score) return 5
+  if (matchResult(prediction.home_score, prediction.away_score) === matchResult(actual.home_score, actual.away_score)) return 2
+  return 0
+}
+
 export function toDateInput(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)

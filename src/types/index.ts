@@ -107,6 +107,7 @@ export type FlappyEntry = {
   display_name: string
   best_score: number
   best_fps: number | null
+  dagtokens: number
 }
 
 export type StickerbalEntry = {
@@ -134,6 +135,7 @@ export type RanglijstEntry = {
   topscorer_punten: number | null
   toernooi_punten: number | null
   wk_totaal: number | null
+  dagscore: number | null
   // combined
   totaal: number | null
 }

@@ -14,6 +14,7 @@ const entries: RanglijstEntry[] = [
     topscorer_punten: 20,
     toernooi_punten: 0,
     wk_totaal: 45,
+    dagscore: 4,
     totaal: 75,
   },
   {
@@ -27,6 +28,7 @@ const entries: RanglijstEntry[] = [
     topscorer_punten: 0,
     toernooi_punten: null,
     wk_totaal: 17,
+    dagscore: 1,
     totaal: 40,
   },
   {
@@ -40,6 +42,7 @@ const entries: RanglijstEntry[] = [
     topscorer_punten: 20,
     toernooi_punten: 5,
     wk_totaal: 58,
+    dagscore: 6,
     totaal: 94,
   },
   {
@@ -53,6 +56,7 @@ const entries: RanglijstEntry[] = [
     topscorer_punten: 0,
     toernooi_punten: null,
     wk_totaal: 10,
+    dagscore: 0,
     totaal: 37,
   },
   {
@@ -66,15 +70,16 @@ const entries: RanglijstEntry[] = [
     topscorer_punten: 20,
     toernooi_punten: 3,
     wk_totaal: 39,
+    dagscore: 3,
     totaal: 68,
   },
 ]
 
 const flappyEntries: FlappyEntry[] = [
-  { user_id: 'u1', display_name: 'Alice', best_score: 42, best_fps: null },
-  { user_id: 'u2', display_name: 'Bob', best_score: 35, best_fps: null },
-  { user_id: 'u3', display_name: 'Charlie', best_score: 28, best_fps: null },
-  { user_id: 'u4', display_name: 'Dana', best_score: 10, best_fps: null },
+  { user_id: 'u1', display_name: 'Alice', best_score: 42, best_fps: null, dagtokens: 7 },
+  { user_id: 'u2', display_name: 'Bob', best_score: 35, best_fps: null, dagtokens: 2 },
+  { user_id: 'u3', display_name: 'Charlie', best_score: 28, best_fps: null, dagtokens: 0 },
+  { user_id: 'u4', display_name: 'Dana', best_score: 10, best_fps: null, dagtokens: 0 },
 ]
 
 describe('RanglijstTabs', () => {
@@ -167,6 +172,19 @@ describe('RanglijstTabs', () => {
     expect(headerTexts).toContain('WK Poule')
   })
 
+  it('shows dagscore in the combined ranking', () => {
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
+    expect(screen.getByRole('columnheader', { name: 'Dagscore' })).toBeInTheDocument()
+    expect(screen.getByText('+6')).toBeInTheDocument()
+  })
+
+  it('shows dagscore in the WK ranking', () => {
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'WK Poule' }))
+    expect(screen.getByRole('columnheader', { name: 'Dagscore' })).toBeInTheDocument()
+    expect(screen.getByText('+6')).toBeInTheDocument()
+  })
+
   it('shows message when pre scores not visible', () => {
     render(<RanglijstTabs entries={entries} scoresZichtbaar={false} wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Pre-pool' }))
@@ -225,6 +243,13 @@ describe('RanglijstTabs', () => {
     expect(screen.getByText('🥇')).toBeInTheDocument()
     // Column header
     expect(screen.getByText('Beste score')).toBeInTheDocument()
+  })
+
+  it('Flappy tab shows dagtokens from correct predictions', () => {
+    render(<RanglijstTabs entries={entries} scoresZichtbaar wkScoresZichtbaar flappyEntries={flappyEntries} flappySeason1Entries={[]} stickerbalEntries={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: /Flappy Bal/ }))
+    expect(screen.getByRole('columnheader', { name: 'Dagtokens' })).toBeInTheDocument()
+    expect(screen.getByText('+7')).toBeInTheDocument()
   })
 
   it('Flappy tab shows "Nog geen scores" message when flappyEntries is empty', () => {

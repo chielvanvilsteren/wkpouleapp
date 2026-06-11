@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { getFlappyDagtokens } from '@/lib/flappy-dagtokens'
+import { getWkDagscores } from '@/lib/wk-dagscore'
 import RanglijstTabs from '@/components/RanglijstTabs'
 import PageHeader from '@/components/PageHeader'
 import type { Profile, Score, WkScore, RanglijstEntry, FlappyEntry, StickerbalEntry } from '@/types'
@@ -29,19 +31,24 @@ export default async function RanglijstPage() {
 
   let preScores: Map<string, Score> = new Map()
   let wkScores: Map<string, WkScore> = new Map()
+  let dagscores: Map<string, number> = new Map()
 
   if (userIds.length > 0) {
-    const [{ data: preRaw }, { data: wkRaw }] = await Promise.all([
+    const [{ data: preRaw }, { data: wkRaw }, dailyPoints] = await Promise.all([
       scoresZichtbaar
         ? supabase.from('scores').select('*').in('user_id', userIds)
         : Promise.resolve({ data: [] }),
       wkScoresZichtbaar
         ? supabase.from('wk_scores').select('*').in('user_id', userIds)
         : Promise.resolve({ data: [] }),
+      wkScoresZichtbaar
+        ? getWkDagscores(userIds)
+        : Promise.resolve(new Map<string, number>()),
     ])
 
     preScores = new Map((preRaw ?? []).map((s) => [s.user_id, s as Score]))
     wkScores = new Map((wkRaw ?? []).map((s) => [s.user_id, s as WkScore]))
+    dagscores = dailyPoints
   }
 
   // Flappy scores — best per user (seizoen 1 en 2 apart)
@@ -50,7 +57,9 @@ export default async function RanglijstPage() {
     supabase.from('flappy_scores').select('user_id, score, fps').eq('season', 1),
   ])
 
-  function buildFlappyEntries(rows: typeof flappyRaw): FlappyEntry[] {
+  const flappyDagtokens = await getFlappyDagtokens(userIds)
+
+  function buildFlappyEntries(rows: typeof flappyRaw, dagtokens: Map<string, number> = new Map()): FlappyEntry[] {
     const bestMap = new Map<string, { score: number; fps: number | null }>()
     for (const row of (rows ?? [])) {
       const prev = bestMap.get(row.user_id)
@@ -64,11 +73,12 @@ export default async function RanglijstPage() {
         display_name: profiles.find((p) => p.id === user_id)?.display_name ?? '???',
         best_score: score,
         best_fps: fps,
+        dagtokens: dagtokens.get(user_id) ?? 0,
       }))
       .sort((a, b) => b.best_score - a.best_score)
   }
 
-  const flappyEntries = buildFlappyEntries(flappyRaw)
+  const flappyEntries = buildFlappyEntries(flappyRaw, flappyDagtokens)
   const flappySeason1Entries = buildFlappyEntries(flappyRawS1)
 
   // Stickerbal results — aggregated by display_name, excluding bots/test
@@ -105,6 +115,7 @@ export default async function RanglijstPage() {
       topscorer_punten: wkScoresZichtbaar ? (wk?.topscorer_punten ?? 0) : null,
       toernooi_punten: wkScoresZichtbaar ? (wk?.toernooi_punten ?? 0) : null,
       wk_totaal: wkScoresZichtbaar ? (wk?.totaal ?? 0) : null,
+      dagscore: wkScoresZichtbaar ? (dagscores.get(p.id) ?? 0) : null,
       totaal: (scoresZichtbaar || wkScoresZichtbaar)
         ? ((pre?.totaal ?? 0) + (wk?.totaal ?? 0))
         : null,

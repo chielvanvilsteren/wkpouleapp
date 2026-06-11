@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { getFlappyDagtokens } from "@/lib/flappy-dagtokens";
+import { getWkDagscores } from "@/lib/wk-dagscore";
 import DisplayRefresh from "./DisplayRefresh";
+import DisplayPouleScores from "./DisplayPouleScores";
 import DisplayToggle from "./DisplayToggle";
 import type { Profile, Score, WkScore } from "@/types";
 
@@ -83,9 +86,10 @@ export default async function DisplayPage() {
 
   const preScoreMap = new Map<string, Score>();
   const wkScoreMap = new Map<string, WkScore>();
+  let dagscores = new Map<string, number>();
 
   if (userIds.length > 0) {
-    await Promise.all([
+    const [, , dailyPoints] = await Promise.all([
       scoresZichtbaar
         ? supabase
             .from("scores")
@@ -106,12 +110,16 @@ export default async function DisplayPage() {
                 wkScoreMap.set(s.user_id, s as WkScore);
             })
         : Promise.resolve(),
+      wkScoresZichtbaar
+        ? getWkDagscores(userIds)
+        : Promise.resolve(new Map<string, number>()),
     ]);
+    dagscores = dailyPoints;
   }
 
   // Flappy Bal: top-10 best scores, all users (not deelnemers-only)
   // Untyped client — flappy_scores is not in the Database type
-  type FlappyRow = { user_id: string; display_name: string; best_score: number };
+  type FlappyRow = { user_id: string; display_name: string; best_score: number; dagtokens: number };
   const flappyEntries: FlappyRow[] = [];
   {
     const { data: allScores } = await (supabase as any)
@@ -128,10 +136,14 @@ export default async function DisplayPage() {
     }
 
     if (bestMap.size > 0) {
-      const { data: allProfiles } = await supabase
-        .from("profiles")
-        .select("id, display_name")
-        .in("id", Array.from(bestMap.keys()));
+      const flappyUserIds = Array.from(bestMap.keys());
+      const [{ data: allProfiles }, flappyDagtokens] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, display_name")
+          .in("id", flappyUserIds),
+        getFlappyDagtokens(flappyUserIds),
+      ]);
 
       const nameMap = new Map(
         ((allProfiles ?? []) as { id: string; display_name: string }[]).map((p) => [p.id, p.display_name])
@@ -145,6 +157,7 @@ export default async function DisplayPage() {
             user_id: uid,
             display_name: nameMap.get(uid) ?? "Onbekend",
             best_score: score,
+            dagtokens: flappyDagtokens.get(uid) ?? 0,
           });
         });
     }
@@ -158,6 +171,7 @@ export default async function DisplayPage() {
       display_name: p.display_name,
       pre_totaal: pre?.totaal ?? 0,
       wk_totaal: wk?.totaal ?? 0,
+      dagscore: dagscores.get(p.id) ?? 0,
       totaal: (pre?.totaal ?? 0) + (wk?.totaal ?? 0),
       pre_ingevuld: preIngevuldSet.has(p.id),
       wk_ingevuld: wkIngevuldSet.has(p.id),
@@ -166,18 +180,6 @@ export default async function DisplayPage() {
 
   const byName = (a: { display_name: string }, b: { display_name: string }) =>
     a.display_name.localeCompare(b.display_name, "nl");
-
-  const preEntries = [...baseEntries].sort((a, b) => {
-    if (scoresZichtbaar && b.pre_totaal !== a.pre_totaal)
-      return b.pre_totaal - a.pre_totaal;
-    return byName(a, b);
-  });
-
-  const wkEntries = [...baseEntries].sort((a, b) => {
-    if (wkScoresZichtbaar && b.wk_totaal !== a.wk_totaal)
-      return b.wk_totaal - a.wk_totaal;
-    return byName(a, b);
-  });
 
   const totaalEntries = [...baseEntries].sort((a, b) => {
     if (anyScores && b.totaal !== a.totaal) return b.totaal - a.totaal;
@@ -188,150 +190,11 @@ export default async function DisplayPage() {
   const tdCls = "px-4 py-3 text-center";
 
   const pouleView = (
-    <div className="px-4 pb-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
-      {/* Pre-poule + WK Poule */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="flex flex-col">
-          <h2 className="text-white font-bold text-xl text-center mb-3">
-            Pre Poule
-          </h2>
-          <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-oranje-500 text-white">
-                  <th className="px-4 py-3 text-left w-10">#</th>
-                  <th className="px-4 py-3 text-left">Naam</th>
-                  <th className={thCls + " font-bold"}>Punten</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preEntries.map((entry, idx) => (
-                  <tr
-                    key={entry.user_id}
-                    className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && scoresZichtbaar ? "bg-oranje-50" : ""}`}
-                  >
-                    <td className="px-4 py-3 text-center font-bold text-gray-400">
-                      <Rank idx={idx} showMedals={scoresZichtbaar} />
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-gray-900">
-                      {entry.display_name}
-                    </td>
-                    <td className={tdCls}>
-                      {scoresZichtbaar ? (
-                        <span className="font-bold text-oranje-600 text-xl">
-                          {entry.pre_totaal}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="flex flex-col">
-          <h2 className="text-white font-bold text-xl text-center mb-3">
-            WK Poule
-          </h2>
-          <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-oranje-500 text-white">
-                  <th className="px-4 py-3 text-left w-10">#</th>
-                  <th className="px-4 py-3 text-left">Naam</th>
-                  <th className={thCls + " font-bold"}>Punten</th>
-                </tr>
-              </thead>
-              <tbody>
-                {wkEntries.map((entry, idx) => (
-                  <tr
-                    key={entry.user_id}
-                    className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && wkScoresZichtbaar ? "bg-oranje-50" : ""}`}
-                  >
-                    <td className="px-4 py-3 text-center font-bold text-gray-400">
-                      <Rank idx={idx} showMedals={true} />
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-gray-900">
-                      {entry.display_name}
-                    </td>
-                    <td className={tdCls}>
-                      {wkScoresZichtbaar ? (
-                        <span className="font-bold text-oranje-600 text-xl">
-                          {entry.wk_totaal}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">0</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Gecombineerd */}
-      <div className="flex flex-col">
-        <h2 className="text-white font-bold text-xl text-center mb-3">
-          Gecombineerd
-        </h2>
-        <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-oranje-500 text-white">
-                <th className="px-4 py-3 text-left w-10">#</th>
-                <th className="px-4 py-3 text-left">Naam</th>
-                <th className={thCls}>Pre Poule</th>
-                <th className={thCls}>WK Poule</th>
-                <th className={thCls + " font-bold"}>Totaal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {totaalEntries.map((entry, idx) => (
-                <tr
-                  key={entry.user_id}
-                  className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${idx < 3 && anyScores ? "bg-oranje-50" : ""}`}
-                >
-                  <td className="px-4 py-3 text-center font-bold text-gray-400">
-                    <Rank idx={idx} showMedals={anyScores} />
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-gray-900">
-                    {entry.display_name}
-                  </td>
-                  <td className={tdCls + " text-gray-600"}>
-                    {scoresZichtbaar ? (
-                      entry.pre_totaal
-                    ) : (
-                      <span className="text-gray-400">0</span>
-                    )}
-                  </td>
-                  <td className={tdCls + " text-gray-600"}>
-                    {wkScoresZichtbaar ? (
-                      entry.wk_totaal
-                    ) : (
-                      <span className="text-gray-400">0</span>
-                    )}
-                  </td>
-                  <td className={tdCls}>
-                    {anyScores ? (
-                      <span className="font-bold text-oranje-600 text-xl">
-                        {entry.totaal}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">0</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <DisplayPouleScores
+      entries={totaalEntries}
+      scoresZichtbaar={scoresZichtbaar}
+      wkScoresZichtbaar={wkScoresZichtbaar}
+    />
   );
 
   const flappyView = (
@@ -342,13 +205,14 @@ export default async function DisplayPage() {
             <tr className="bg-oranje-500 text-white">
               <th className="px-4 py-3 text-left w-10">#</th>
               <th className="px-4 py-3 text-left">Naam</th>
+              <th className={thCls}>Dagtokens</th>
               <th className={thCls + " font-bold"}>Best</th>
             </tr>
           </thead>
           <tbody>
             {flappyEntries.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={4} className="px-4 py-10 text-center text-gray-400">
                   Nog geen scores
                 </td>
               </tr>
@@ -363,6 +227,11 @@ export default async function DisplayPage() {
                   </td>
                   <td className="px-4 py-3 font-semibold text-gray-900">
                     {entry.display_name}
+                  </td>
+                  <td className={tdCls}>
+                    <span className={`font-bold ${entry.dagtokens > 0 ? "text-oranje-600" : "text-gray-400"}`}>
+                      {entry.dagtokens > 0 ? `+${entry.dagtokens}` : "0"}
+                    </span>
                   </td>
                   <td className={tdCls}>
                     <span className="font-bold text-oranje-600 text-2xl">

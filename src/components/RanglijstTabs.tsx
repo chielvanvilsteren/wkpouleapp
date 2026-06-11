@@ -49,6 +49,15 @@ const MEDALS = ['🥇', '🥈', '🥉']
 
 type Tab = 'pre' | 'wk' | 'totaal' | 'flappy' | 'stickerbal'
 
+function formatDagscore(points: number | null) {
+  if (points === null) return '—'
+  return points > 0 ? `+${points}` : '0'
+}
+
+function formatDagtokens(tokens: number) {
+  return tokens > 0 ? `+${tokens}` : '0'
+}
+
 export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtbaar, flappyEntries, flappySeason1Entries, stickerbalEntries }: Props) {
   const [tab, setTab] = useState<Tab>('totaal')
   const [flappySeason, setFlappySeason] = useState<1 | 2>(2)
@@ -150,6 +159,7 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                     <th className="px-4 py-3 text-center">Incidents</th>
                     <th className="px-4 py-3 text-center">Topscorer</th>
                     <th className="px-4 py-3 text-center">Toernooi</th>
+                    <th className="px-4 py-3 text-center" title="Punten erbij op de huidige speeldag in de gastlanden">Dagscore</th>
                     <th className="px-4 py-3 text-center font-bold">Totaal</th>
                   </>
                 )}
@@ -157,11 +167,16 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                   <>
                     {scoresZichtbaar && <th className="px-4 py-3 text-center">Pre-pool</th>}
                     {wkScoresZichtbaar && <th className="px-4 py-3 text-center">WK Poule</th>}
+                    {wkScoresZichtbaar && <th className="px-4 py-3 text-center" title="Punten erbij op de huidige speeldag in de gastlanden">Dagscore</th>}
                     <th className="px-4 py-3 text-center font-bold">Totaal</th>
                   </>
                 )}
                 {tab !== 'flappy' && !showScores && <th className="px-4 py-3 text-center">Score</th>}
-                {tab === 'flappy' && <><th className="px-4 py-3 text-center font-bold">Beste score</th><th className="px-4 py-3 text-center text-gray-400 font-normal text-sm">FPS</th></>}
+                {tab === 'flappy' && <>
+                  <th className="px-4 py-3 text-center font-bold">Beste score</th>
+                  <th className="px-4 py-3 text-center" title="Flappy-tokens uit juiste voorspellingen op de huidige speeldag in de gastlanden">Dagtokens</th>
+                  <th className="px-4 py-3 text-center text-gray-400 font-normal text-sm">FPS</th>
+                </>}
                 {tab === 'stickerbal' && <>
                   <th className="px-4 py-3 text-center">Gespeeld</th>
                   <th className="px-4 py-3 text-center text-green-600">W</th>
@@ -181,6 +196,11 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                       <td className="px-4 py-3 font-medium text-gray-900">{entry.display_name}</td>
                       <td className="px-4 py-3 text-center">
                         <span className="font-black text-oranje-600 text-lg">{entry.best_score}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`font-bold ${entry.dagtokens > 0 ? 'text-oranje-600' : 'text-gray-400'}`}>
+                          {formatDagtokens(entry.dagtokens)}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-center">
                         {entry.best_fps != null
@@ -228,14 +248,30 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                           <td className="px-4 py-3 text-center text-gray-700">{entry.incidents_punten ?? <span className="text-gray-400">—</span>}</td>
                           <td className="px-4 py-3 text-center text-gray-700">{entry.topscorer_punten ?? <span className="text-gray-400">—</span>}</td>
                           <td className="px-4 py-3 text-center text-gray-700">{entry.toernooi_punten ?? <span className="text-gray-400">—</span>}</td>
-                          <td className="px-4 py-3 text-center"><span className="font-bold text-oranje-600 text-lg">{entry.wk_totaal ?? '—'}</span></td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`font-bold ${entry.dagscore && entry.dagscore > 0 ? 'text-oranje-600' : 'text-gray-400'}`}>
+                              {formatDagscore(entry.dagscore)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="font-bold text-oranje-600 text-lg">{entry.wk_totaal ?? '—'}</span>
+                          </td>
                         </>
                       )}
                       {tab === 'totaal' && anyScores && (
                         <>
                           {scoresZichtbaar && <td className="px-4 py-3 text-center text-gray-700">{entry.pre_totaal ?? <span className="text-gray-400">—</span>}</td>}
                           {wkScoresZichtbaar && <td className="px-4 py-3 text-center text-gray-700">{entry.wk_totaal ?? <span className="text-gray-400">—</span>}</td>}
-                          <td className="px-4 py-3 text-center"><span className="font-bold text-oranje-600 text-lg">{entry.totaal ?? '—'}</span></td>
+                          {wkScoresZichtbaar && (
+                            <td className="px-4 py-3 text-center">
+                              <span className={`font-bold ${entry.dagscore && entry.dagscore > 0 ? 'text-oranje-600' : 'text-gray-400'}`}>
+                                {formatDagscore(entry.dagscore)}
+                              </span>
+                            </td>
+                          )}
+                          <td className="px-4 py-3 text-center">
+                            <span className="font-bold text-oranje-600 text-lg">{entry.totaal ?? '—'}</span>
+                          </td>
                         </>
                       )}
                       {!showScores && <td className="px-4 py-3 text-center text-gray-400">—</td>}
