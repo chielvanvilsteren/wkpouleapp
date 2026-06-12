@@ -15,19 +15,23 @@ function mapToArr(countMap: Map<string, number>, pickersMap: Map<string, string[
 }
 
 export async function GET() {
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    supabaseKey,
+    { auth: { persistSession: false } }
   )
 
   const { data: uitslag } = await admin
     .from('master_uitslag')
-    .select('inzendingen_open, wk_poule_open, scores_zichtbaar, wk_scores_zichtbaar, selectie, basis_xi')
+    .select('inzendingen_open, wk_poule_open, wk_poule_deadline, scores_zichtbaar, wk_scores_zichtbaar, selectie, basis_xi')
     .eq('id', 1)
     .single()
 
-  const preOpen = !(uitslag?.scores_zichtbaar ?? false)
-  const wkOpen = uitslag?.wk_poule_open !== false
+  const preLocked = !(uitslag?.scores_zichtbaar ?? false)
+  const wkDeadline = uitslag?.wk_poule_deadline ? new Date(uitslag.wk_poule_deadline as string) : null
+  const wkDeadlinePassed = wkDeadline !== null && !Number.isNaN(wkDeadline.getTime()) && Date.now() >= wkDeadline.getTime()
+  const wkLocked = (uitslag?.wk_poule_open ?? true) && !wkDeadlinePassed
 
   const { data: profiles } = await admin
     .from('profiles')
@@ -36,8 +40,8 @@ export async function GET() {
     .order('display_name')
 
   const result: Record<string, unknown> = {
-    pre_locked: preOpen,
-    wk_locked: wkOpen,
+    pre_locked: preLocked,
+    wk_locked: wkLocked,
     scores_zichtbaar: uitslag?.scores_zichtbaar ?? false,
     wk_scores_zichtbaar: uitslag?.wk_scores_zichtbaar ?? false,
     official_selectie: uitslag?.selectie ?? [],
@@ -45,7 +49,7 @@ export async function GET() {
     profiles: profiles ?? [],
   }
 
-  if (!preOpen) {
+  if (!preLocked) {
     const { data: predictions } = await admin
       .from('predictions')
       .select('user_id, selectie, basis_xi')
@@ -77,7 +81,7 @@ export async function GET() {
     result.basis_xi = mapToArr(basisXiCount, basisXiPickers, total)
   }
 
-  if (!wkOpen) {
+  if (!wkLocked) {
     const { data: incidents } = await admin
       .from('wk_incidents_predictions')
       .select('user_id, wereldkampioen, topscorer_wk, rode_kaart, gele_kaart, geblesseerde, eerste_goal_nl')

@@ -317,10 +317,22 @@ export default function StatsPage() {
       setData(d)
       setFlappy(f)
       if (d.pre_locked && !d.wk_locked) setTab('wk')
+      else if (!d.pre_locked) setTab('pre')
     }).finally(() => setLoading(false))
   }, [])
 
-  const subtitle = loading ? '' : `${data?.total_pre ?? 0} deelnemers`
+  const tabOptions: Tab[] = data
+    ? !data.pre_locked
+      ? ['pre', 'wk', 'flappy']
+      : !data.wk_locked
+        ? ['wk']
+        : []
+    : []
+  const subtitle = loading
+    ? ''
+    : data?.pre_locked && !data?.wk_locked
+      ? `${data?.total_wk ?? 0} WK-inzendingen`
+      : `${data?.total_pre ?? 0} deelnemers`
 
   return (
     <>
@@ -338,11 +350,11 @@ export default function StatsPage() {
           </div>
         )}
 
-        {!loading && !data?.pre_locked && (
+        {!loading && tabOptions.length > 0 && (
           <>
-            {/* Tabs — altijd tonen zodra pre-pool open is */}
+            {/* Tabs */}
             <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
-              {(['pre', 'wk', 'flappy'] as Tab[]).map(t => (
+              {tabOptions.map(t => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
