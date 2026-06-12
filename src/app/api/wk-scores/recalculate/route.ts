@@ -3,6 +3,14 @@ import { NextResponse } from 'next/server'
 import { normalize, matchResult } from '@/lib/scoring-utils'
 import { sendPushToUser } from '@/lib/push'
 
+function isNoIncidentAnswer(value: string | null | undefined): boolean {
+  return ['geen', 'niemand', 'nvt', 'n.v.t.', 'none', 'no one', '-'].includes(normalize(value))
+}
+
+function predictedNoIncident(value: string | null | undefined): boolean {
+  return normalize(value) === '' || isNoIncidentAnswer(value)
+}
+
 export async function POST() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -74,20 +82,20 @@ export async function POST() {
     const uitslag_definitief = masterUitslag?.wk_scores_zichtbaar ?? false
 
     if (wkUitslag && uitslag_definitief) {
-      // rode_kaart: 30 correct player, 10 if both empty
-      if (normalize(wkUitslag.rode_kaart) === '') {
-        if (normalize(inc.rode_kaart) === '') incidentsPts += 10
-      } else if (normalize(inc.rode_kaart) === normalize(wkUitslag.rode_kaart)) {
+      // rode_kaart: 30 correct player, 10 if admin explicitly marks no incident.
+      if (isNoIncidentAnswer(wkUitslag.rode_kaart)) {
+        if (predictedNoIncident(inc.rode_kaart)) incidentsPts += 10
+      } else if (normalize(wkUitslag.rode_kaart) !== '' && normalize(inc.rode_kaart) === normalize(wkUitslag.rode_kaart)) {
         incidentsPts += 30
       }
 
       // gele_kaart: 10 if correct (unchanged)
       if (normalize(inc.gele_kaart) === normalize(wkUitslag.gele_kaart) && normalize(wkUitslag.gele_kaart) !== '') incidentsPts += 10
 
-      // geblesseerde: 30 correct player, 10 if both empty
-      if (normalize(wkUitslag.geblesseerde) === '') {
-        if (normalize(inc.geblesseerde) === '') incidentsPts += 10
-      } else if (normalize(inc.geblesseerde) === normalize(wkUitslag.geblesseerde)) {
+      // geblesseerde: 30 correct player, 10 if admin explicitly marks no incident.
+      if (isNoIncidentAnswer(wkUitslag.geblesseerde)) {
+        if (predictedNoIncident(inc.geblesseerde)) incidentsPts += 10
+      } else if (normalize(wkUitslag.geblesseerde) !== '' && normalize(inc.geblesseerde) === normalize(wkUitslag.geblesseerde)) {
         incidentsPts += 30
       }
 

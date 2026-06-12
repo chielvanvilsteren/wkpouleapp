@@ -131,6 +131,11 @@ Stel in Render de environment variables in:
 - `SYNC_SECRET_TOKEN`
 - `NEXT_PUBLIC_APP_URL` (de URL van je web service)
 
+De cron-sync schrijft wedstrijduitslagen via beperkte Supabase RPC-functies met
+de normale anon key. Na het toepassen van de database-migraties moet een admin de
+sync-knop één keer gebruiken; daarmee wordt de hash van `SYNC_SECRET_TOKEN` in de
+database gezet zodat de cron daarna dezelfde RPC's mag gebruiken.
+
 ### Optie B: cron-job.org (gratis, extern)
 
 1. Ga naar [cron-job.org](https://cron-job.org)

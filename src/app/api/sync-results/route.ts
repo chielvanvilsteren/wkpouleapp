@@ -6,16 +6,17 @@
  * 2. Ingelogde admin-sessie (Supabase cookie)   — voor de admin UI knop
  */
 
-import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { createClient as createApiClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 const FOOTBALL_DATA_API_KEY = process.env.FOOTBALL_DATA_API_KEY
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const SYNC_SECRET_TOKEN = process.env.SYNC_SECRET_TOKEN
 const WK_COMPETITION_ID = 2000
 const LOOKBACK_HOURS = 3
+const ADMIN_LOOKBACK_HOURS = 48
 const WK_START = new Date('2026-06-11T00:00:00Z')
 
 // Wedstrijdtijden in de DB zijn Nederlandse tijd (CEST = UTC+2)
@@ -46,6 +47,12 @@ interface DbMatch {
   is_finished: boolean
 }
 
+type SupabaseLikeError = {
+  message: string
+  code?: string
+  status?: number
+}
+
 const TEAM_NAME_MAP: Record<string, string> = {
   'Netherlands': 'Nederland', 'Germany': 'Duitsland', 'France': 'Frankrijk',
   'Spain': 'Spanje', 'Belgium': 'België', 'England': 'Engeland',
@@ -71,6 +78,21 @@ function normalizeTeam(name: string): string {
   return TEAM_NAME_MAP[name] ?? name
 }
 
+function describeSupabaseError(context: string, err: SupabaseLikeError): string {
+  const rawMessage = err.message || 'Onbekende Supabase fout'
+  const isApiKeyError = rawMessage.toLowerCase().includes('invalid api key')
+
+  if (isApiKeyError) return `${context}: Supabase configuratiefout: NEXT_PUBLIC_SUPABASE_ANON_KEY is ongeldig of hoort niet bij NEXT_PUBLIC_SUPABASE_URL.`
+
+  const details = [
+    rawMessage,
+    err.code ? `code ${err.code}` : null,
+    err.status ? `status ${err.status}` : null,
+  ].filter(Boolean).join(' · ')
+
+  return `${context}: ${details}`
+}
+
 export async function POST(req: NextRequest) {
   // Auth: accepteer SYNC_SECRET_TOKEN (cronjob) OF ingelogde admin (browser)
   const authHeader = req.headers.get('authorization') ?? ''
@@ -78,6 +100,7 @@ export async function POST(req: NextRequest) {
 
   let isAuthorized = false
   let triggeredBy = 'cron'
+  let userScopedSupabase: Awaited<ReturnType<typeof createClient>> | null = null
 
   if (SYNC_SECRET_TOKEN && bearerToken === SYNC_SECRET_TOKEN) {
     isAuthorized = true
@@ -85,6 +108,7 @@ export async function POST(req: NextRequest) {
     // Controleer Supabase admin-sessie
     try {
       const supabaseUser = await createClient()
+      userScopedSupabase = supabaseUser
       const { data: { user } } = await supabaseUser.auth.getUser()
       if (user) {
         const { data: profile } = await supabaseUser.from('profiles').select('is_admin').eq('id', user.id).single()
@@ -103,10 +127,68 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'FOOTBALL_DATA_API_KEY is niet geconfigureerd op de server.' }, { status: 500 })
   }
 
-  const supabase = createServiceClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+  if (triggeredBy === 'cron' && !SUPABASE_ANON_KEY) {
+    return NextResponse.json({ error: 'NEXT_PUBLIC_SUPABASE_ANON_KEY is niet geconfigureerd op de server.' }, { status: 500 })
+  }
+
+  const supabase = triggeredBy === 'admin' && userScopedSupabase
+    ? userScopedSupabase
+    : createApiClient(SUPABASE_URL, SUPABASE_ANON_KEY!, { auth: { persistSession: false } })
   const results: string[] = []
   const log = (msg: string) => { console.log(msg); results.push(msg) }
   const warn = (msg: string) => { console.warn(msg); results.push(`WARN: ${msg}`) }
+
+  if (triggeredBy === 'admin' && SYNC_SECRET_TOKEN) {
+    const { error } = await supabase.rpc('configure_sync_rpc_secret', { p_sync_token: SYNC_SECRET_TOKEN })
+    if (error) warn(`Cron-RPC secret kon niet worden ingesteld: ${error.message}`)
+  }
+
+  const writeLog = async (status: 'success' | 'none' | 'error', message: string, updated = 0, skipped = 0, unmatched = 0, source = triggeredBy) => {
+    if (triggeredBy === 'cron') {
+      const { error } = await supabase.rpc('sync_insert_log', {
+        p_sync_token: SYNC_SECRET_TOKEN!,
+        p_status: status,
+        p_message: message,
+        p_updated: updated,
+        p_skipped: skipped,
+        p_unmatched: unmatched,
+        p_details: results,
+        p_triggered_by: source,
+      })
+      if (error) warn(`Sync-log opslaan via RPC mislukt: ${error.message}`)
+      return
+    }
+
+    const { error } = await supabase.from('sync_logs').insert({
+      status,
+      message,
+      updated,
+      skipped,
+      unmatched,
+      details: results,
+      triggered_by: source,
+    })
+    if (error) warn(`Sync-log opslaan mislukt: ${error.message}`)
+  }
+
+  const updateMatchResult = async (dbMatch: DbMatch, homeScore: number, awayScore: number, apiMatchId: number) => {
+    if (triggeredBy === 'cron') {
+      const { error } = await supabase.rpc('sync_update_match_result', {
+        p_sync_token: SYNC_SECRET_TOKEN!,
+        p_match_id: dbMatch.id,
+        p_home_score: homeScore,
+        p_away_score: awayScore,
+        p_external_api_id: apiMatchId,
+      })
+      return error
+    }
+
+    const { error } = await supabase
+      .from('matches')
+      .update({ home_score: homeScore, away_score: awayScore, is_live: false, is_finished: true, external_api_id: apiMatchId })
+      .eq('id', dbMatch.id)
+    return error
+  }
 
   // ── Heartbeat: dagelijkse controle om 12:00 CEST ─────────────────────────────
   if (triggeredBy === 'cron' && req.nextUrl.searchParams.get('source') === 'heartbeat') {
@@ -132,13 +214,7 @@ export async function POST(req: NextRequest) {
       ? `💓 Dagelijkse controle 12:00 — API bereikbaar (${responseMs}ms)`
       : `💓 Dagelijkse controle 12:00 — API NIET bereikbaar: ${errorMsg}`
 
-    await supabase.from('sync_logs').insert({
-      status: reachable ? 'none' : 'error',
-      message,
-      updated: 0, skipped: 0, unmatched: 0,
-      details: [],
-      triggered_by: 'heartbeat',
-    })
+    await writeLog(reachable ? 'none' : 'error', message, 0, 0, 0, 'heartbeat')
 
     return NextResponse.json({ heartbeat: true, reachable, message })
   }
@@ -174,36 +250,17 @@ export async function POST(req: NextRequest) {
       // Alleen dagelijkse check logt — zo kan admin zien dat de cron draait.
       // WK-cron (elk half uur) blijft stil om ruis te vermijden.
       if (isDaily) {
-        await supabase.from('sync_logs').insert({
-          status: 'none',
-          message: skipMsg,
-          updated: 0,
-          skipped: 0,
-          unmatched: 0,
-          details: [],
-          triggered_by: triggeredBy,
-        })
+        await writeLog('none', skipMsg)
       }
       return NextResponse.json({ skipped: true, message: skipMsg })
     }
   }
 
-  const writeLog = async (status: 'success' | 'none' | 'error', message: string, updated = 0, skipped = 0, unmatched = 0) => {
-    await supabase.from('sync_logs').insert({
-      status,
-      message,
-      updated,
-      skipped,
-      unmatched,
-      details: results,
-      triggered_by: triggeredBy,
-    })
-  }
-
   try {
     // Haal afgeronde wedstrijden op
     const now = new Date()
-    const from = new Date(now.getTime() - LOOKBACK_HOURS * 60 * 60 * 1000)
+    const lookbackHours = triggeredBy === 'admin' ? ADMIN_LOOKBACK_HOURS : LOOKBACK_HOURS
+    const from = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000)
     const dateFrom = from.toISOString().split('T')[0]
     const dateTo = now.toISOString().split('T')[0]
 
@@ -223,7 +280,7 @@ export async function POST(req: NextRequest) {
     const apiMatches: ApiMatch[] = (data.matches ?? []).filter((m: ApiMatch) => m.status === 'FINISHED')
 
     if (apiMatches.length === 0) {
-      const msg = 'Geen afgeronde wedstrijden gevonden in de afgelopen 3 uur. De wedstrijd is mogelijk nog bezig of de uitslag is nog niet beschikbaar in de API.'
+      const msg = `Geen afgeronde wedstrijden gevonden in de afgelopen ${lookbackHours} uur. De wedstrijd is mogelijk nog bezig of de uitslag is nog niet beschikbaar in de API.`
       await writeLog('none', msg)
       return NextResponse.json({ updated: 0, skipped: 0, unmatched: 0, message: msg, log: results })
     }
@@ -237,7 +294,7 @@ export async function POST(req: NextRequest) {
       .select('id, match_number, external_api_id, home_team, away_team, home_score, away_score, is_finished')
       .or(`is_finished.eq.false,external_api_id.in.(${apiIds.join(',')})`)
 
-    if (dbErr) throw new Error(dbErr.message)
+    if (dbErr) throw new Error(describeSupabaseError('Database ophalen mislukt', dbErr))
     const dbMatches = (dbRaw ?? []) as DbMatch[]
 
     let updated = 0, skipped = 0, unmatched = 0
@@ -255,6 +312,14 @@ export async function POST(req: NextRequest) {
         dbMatch = dbMatches.find((m) =>
           normalizeTeam(m.home_team) === homeApi && normalizeTeam(m.away_team) === awayApi
         )
+        if (!dbMatch) {
+          dbMatch = dbMatches.find((m) =>
+            normalizeTeam(m.home_team) === awayApi && normalizeTeam(m.away_team) === homeApi
+          )
+          if (dbMatch) {
+            warn(`Gekoppeld met omgekeerde teamvolgorde: ${dbMatch.home_team} - ${dbMatch.away_team} (API: ${homeApi} - ${awayApi})`)
+          }
+        }
       }
 
       if (!dbMatch) {
@@ -269,12 +334,14 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      const { error: upErr } = await supabase
-        .from('matches')
-        .update({ home_score: homeScore, away_score: awayScore, is_live: false, is_finished: true, external_api_id: apiMatch.id })
-        .eq('id', dbMatch.id)
+      const upErr = await updateMatchResult(dbMatch, homeScore, awayScore, apiMatch.id)
 
-      if (upErr) { warn(`Update mislukt #${dbMatch.match_number}: ${upErr.message}`); continue }
+      if (upErr) {
+        const msg = describeSupabaseError(`Update mislukt #${dbMatch.match_number}`, upErr)
+        if (triggeredBy === 'cron') throw new Error(msg)
+        warn(msg)
+        continue
+      }
 
       log(`✅ #${dbMatch.match_number} ${dbMatch.home_team} ${homeScore}-${awayScore} ${dbMatch.away_team}`)
       updated++

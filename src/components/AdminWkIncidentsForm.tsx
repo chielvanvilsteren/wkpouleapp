@@ -65,7 +65,7 @@ export default function AdminWkIncidentsForm({ uitslag }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">🟥 Eerste Rode Kaart NL</label>
-          <input type="text" value={rodeKaart} onChange={(e) => setRodeKaart(e.target.value)} className="input-field" placeholder="Spelernaam" />
+          <input type="text" value={rodeKaart} onChange={(e) => setRodeKaart(e.target.value)} className="input-field" placeholder="Spelernaam of geen" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">🟨 Eerste Gele Kaart NL</label>
@@ -73,7 +73,7 @@ export default function AdminWkIncidentsForm({ uitslag }: Props) {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">🩹 Eerste Geblesseerde NL</label>
-          <input type="text" value={geblesseerde} onChange={(e) => setGeblesseerde(e.target.value)} className="input-field" placeholder="Spelernaam" />
+          <input type="text" value={geblesseerde} onChange={(e) => setGeblesseerde(e.target.value)} className="input-field" placeholder="Spelernaam of geen" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">⚽ Eerste Doelpunt NL</label>

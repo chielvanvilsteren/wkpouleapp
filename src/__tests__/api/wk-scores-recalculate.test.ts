@@ -26,6 +26,14 @@ function makePromiseChain(resolvedValue: unknown) {
   return jest.fn().mockResolvedValue(resolvedValue)
 }
 
+function masterVisibleChain(visible = true) {
+  return {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: { wk_scores_zichtbaar: visible }, error: null }),
+  }
+}
+
 describe('POST /api/wk-scores/recalculate', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -54,10 +62,14 @@ describe('POST /api/wk-scores/recalculate', () => {
 
   function setupAdmin() {
     mockSupabaseAuth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockSupabaseFrom.mockReturnValue({
+    const profileChain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: true }, error: null }),
+    }
+    mockSupabaseFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return profileChain
+      return mockAdminFrom(table)
     })
   }
 
@@ -75,6 +87,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
 
     const res = await POST()
     expect(res.status).toBe(200)
@@ -95,6 +108,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
 
     const res = await POST()
     expect(res.status).toBe(200)
@@ -121,6 +135,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     const res = await POST()
@@ -151,6 +166,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -180,6 +196,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -189,12 +206,12 @@ describe('POST /api/wk-scores/recalculate', () => {
     expect(u1.match_punten).toBe(0)
   })
 
-  it('awards 30 for correct rode_kaart, 10 for correct gele_kaart, 10 for empty geblesseerde', async () => {
+  it('does not award no-incident points while the admin result is still empty', async () => {
     setupAdmin()
 
     const finishedMatches: unknown[] = []
     const allPredictions: unknown[] = []
-    // rode_kaart correct → 30, gele_kaart correct → 10, geblesseerde both empty → 10
+    // rode_kaart correct → 30, gele_kaart correct → 10, geblesseerde empty means unknown → 0
     const wkUitslag = { id: 1, rode_kaart: 'Dumfries', gele_kaart: 'De Jong', geblesseerde: '', eerste_goal_nl: '', topscorer_wk: '', wereldkampioen: '', finale_team1: '', finale_team2: '' }
     const wkIncidents = [{ user_id: 'u1', rode_kaart: 'Dumfries', gele_kaart: 'De Jong', geblesseerde: '', eerste_goal_nl: '', topscorer_wk: '', wereldkampioen: '', finale_team1: '', finale_team2: '' }]
 
@@ -209,22 +226,23 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
 
     const upsertArg = upsertChain.upsert.mock.calls[0][0]
     const u1 = upsertArg.find((u: { user_id: string }) => u.user_id === 'u1')
-    expect(u1.incidents_punten).toBe(50) // rode_kaart 30 + gele_kaart 10 + geblesseerde (both empty) 10
+    expect(u1.incidents_punten).toBe(40) // rode_kaart 30 + gele_kaart 10
   })
 
-  it('awards 10 pts each for empty rode_kaart and geblesseerde when actual also empty', async () => {
+  it('awards 10 pts each for empty rode_kaart and geblesseerde when admin explicitly enters geen', async () => {
     setupAdmin()
 
     const finishedMatches: unknown[] = []
     const allPredictions: unknown[] = []
-    // rode_kaart both empty → 10, geblesseerde both empty → 10, rest empty → 0
-    const wkUitslag = { id: 1, rode_kaart: '', gele_kaart: '', geblesseerde: '', eerste_goal_nl: '', topscorer_wk: '', wereldkampioen: '', finale_team1: '', finale_team2: '' }
+    // actual "geen" + user empty → 10 each
+    const wkUitslag = { id: 1, rode_kaart: 'geen', gele_kaart: '', geblesseerde: 'geen', eerste_goal_nl: '', topscorer_wk: '', wereldkampioen: '', finale_team1: '', finale_team2: '' }
     const wkIncidents = [{ user_id: 'u1', rode_kaart: '', gele_kaart: '', geblesseerde: '', eerste_goal_nl: '', topscorer_wk: '', wereldkampioen: '', finale_team1: '', finale_team2: '' }]
 
     const matchesChain = { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: finishedMatches, error: null }) }
@@ -238,13 +256,14 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
 
     const upsertArg = upsertChain.upsert.mock.calls[0][0]
     const u1 = upsertArg.find((u: { user_id: string }) => u.user_id === 'u1')
-    expect(u1.incidents_punten).toBe(20) // rode_kaart (both empty) 10 + geblesseerde (both empty) 10
+    expect(u1.incidents_punten).toBe(20) // rode_kaart geen 10 + geblesseerde geen 10
   })
 
   it('awards 0 when rode_kaart predicted but actual empty, or predicted wrong', async () => {
@@ -268,6 +287,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -296,6 +316,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -329,6 +350,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -359,6 +381,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -367,11 +390,11 @@ describe('POST /api/wk-scores/recalculate', () => {
     expect(u1.match_punten).toBe(0)
   })
 
-  it('awards 30 for correct geblesseerde, 10 for correct eerste_goal_nl, 10 for empty rode_kaart', async () => {
+  it('awards 30 for correct geblesseerde and 10 for correct eerste_goal_nl without empty rode_kaart points', async () => {
     setupAdmin()
     const finishedMatches: unknown[] = []
     const allPredictions: unknown[] = []
-    // geblesseerde correct → 30, eerste_goal_nl correct → 10, rode_kaart both empty → 10
+    // geblesseerde correct → 30, eerste_goal_nl correct → 10, rode_kaart empty means unknown → 0
     const wkUitslag = { id: 1, rode_kaart: '', gele_kaart: '', geblesseerde: 'Van Dijk', eerste_goal_nl: 'Depay', topscorer_wk: '', wereldkampioen: '', finale_team1: '', finale_team2: '' }
     const wkIncidents = [{ user_id: 'u1', rode_kaart: '', gele_kaart: '', geblesseerde: 'van dijk', eerste_goal_nl: 'depay', topscorer_wk: '', wereldkampioen: '', finale_team1: '', finale_team2: '' }]
 
@@ -386,12 +409,13 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
     const upsertArg = upsertChain.upsert.mock.calls[0][0]
     const u1 = upsertArg.find((u: { user_id: string }) => u.user_id === 'u1')
-    expect(u1.incidents_punten).toBe(50) // rode_kaart (both empty) 10 + geblesseerde 30 + eerste_goal_nl 10
+    expect(u1.incidents_punten).toBe(40) // geblesseerde 30 + eerste_goal_nl 10
   })
 
   it('returns 500 when upsert fails', async () => {
@@ -413,6 +437,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     const res = await POST()
@@ -437,6 +462,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -463,6 +489,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -489,6 +516,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
@@ -515,6 +543,7 @@ describe('POST /api/wk-scores/recalculate', () => {
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(wkUitslagChain)
       .mockReturnValueOnce(wkIncidentsChain)
+      .mockReturnValueOnce(masterVisibleChain())
       .mockReturnValueOnce(upsertChain)
 
     await POST()
