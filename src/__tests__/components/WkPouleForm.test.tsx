@@ -630,6 +630,69 @@ describe('WkPouleForm', () => {
     expect(scoreInputs[1]).toHaveValue(1)
   })
 
+  it('shows actual score, 3 points, and green row for exact prediction', () => {
+    const finishedMatches: Match[] = [
+      { ...groupMatches[0], home_score: 2, away_score: 1, is_finished: true },
+    ]
+    const initialPredictions: MatchPrediction[] = [
+      { id: 'pred-1', user_id: 'user-1', match_id: 1, home_score: 2, away_score: 1 },
+    ]
+    render(
+      <WkPouleForm
+        matches={finishedMatches}
+        initialPredictions={initialPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    expect(screen.getByText('2-1')).toBeInTheDocument()
+    expect(screen.getByText('3 pt')).toBeInTheDocument()
+    expect(screen.getByTestId('match-row-1')).toHaveClass('bg-emerald-50')
+  })
+
+  it('shows 1 point and orange row for correct match result', () => {
+    const finishedMatches: Match[] = [
+      { ...groupMatches[0], home_score: 3, away_score: 2, is_finished: true },
+    ]
+    const initialPredictions: MatchPrediction[] = [
+      { id: 'pred-1', user_id: 'user-1', match_id: 1, home_score: 1, away_score: 0 },
+    ]
+    render(
+      <WkPouleForm
+        matches={finishedMatches}
+        initialPredictions={initialPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    expect(screen.getByText('3-2')).toBeInTheDocument()
+    expect(screen.getByText('1 pt')).toBeInTheDocument()
+    expect(screen.getByTestId('match-row-1')).toHaveClass('bg-orange-50')
+  })
+
+  it('shows 0 points and red row for wrong prediction', () => {
+    const finishedMatches: Match[] = [
+      { ...groupMatches[0], home_score: 2, away_score: 1, is_finished: true },
+    ]
+    const initialPredictions: MatchPrediction[] = [
+      { id: 'pred-1', user_id: 'user-1', match_id: 1, home_score: 1, away_score: 2 },
+    ]
+    render(
+      <WkPouleForm
+        matches={finishedMatches}
+        initialPredictions={initialPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen
+        now={nowPast}
+      />
+    )
+    expect(screen.getByText('2-1')).toBeInTheDocument()
+    expect(screen.getByText('0 pt')).toBeInTheDocument()
+    expect(screen.getByTestId('match-row-1')).toHaveClass('bg-red-50')
+  })
+
   it('puntenOpen accordion toggles scoring overview', () => {
     render(
       <WkPouleForm

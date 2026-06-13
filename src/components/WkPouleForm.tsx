@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { matchPredictionPoints } from "@/lib/scoring-utils";
 import type { Match, MatchPrediction, WkIncidentsPrediction } from "@/types";
 
 type Props = {
@@ -124,6 +125,39 @@ function CountrySelect({
       ))}
     </select>
   );
+}
+
+function matchHasActualScore(match: Match) {
+  return match.is_finished && match.home_score !== null && match.away_score !== null;
+}
+
+function resultTone(points: number | null) {
+  if (points === 3) {
+    return {
+      row: "bg-emerald-50 hover:bg-emerald-100/80",
+      badge: "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
+      result: "text-emerald-800",
+    };
+  }
+  if (points === 1) {
+    return {
+      row: "bg-orange-50 hover:bg-orange-100/80",
+      badge: "bg-orange-100 text-orange-800 ring-1 ring-orange-200",
+      result: "text-orange-800",
+    };
+  }
+  if (points === 0) {
+    return {
+      row: "bg-red-50 hover:bg-red-100/80",
+      badge: "bg-red-100 text-red-800 ring-1 ring-red-200",
+      result: "text-red-800",
+    };
+  }
+  return {
+    row: "hover:bg-gray-50",
+    badge: "bg-gray-100 text-gray-500 ring-1 ring-gray-200",
+    result: "text-gray-500",
+  };
 }
 
 export default function WkPouleForm({
@@ -423,10 +457,19 @@ export default function WkPouleForm({
             <div className="divide-y divide-gray-100">
               {groupMatches.map((match) => {
                 const s = scores.get(match.id)!;
+                const hasActualScore = matchHasActualScore(match);
+                const points = hasActualScore
+                  ? matchPredictionPoints(
+                      { home_score: s.home, away_score: s.away },
+                      { home_score: match.home_score, away_score: match.away_score },
+                    )
+                  : null;
+                const tone = resultTone(points);
                 return (
                   <div
                     key={match.id}
-                    className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50"
+                    data-testid={`match-row-${match.id}`}
+                    className={`flex flex-wrap items-center gap-2 px-4 py-3 transition-colors sm:flex-nowrap ${tone.row}`}
                   >
                     <span className="text-xs text-gray-400 w-16 shrink-0">
                       {new Date(match.match_date).toLocaleDateString("nl-NL", {
@@ -459,6 +502,29 @@ export default function WkPouleForm({
                     <span className={`flex-1 text-sm font-medium text-left truncate ${match.stage !== "group" && !knockoutTeamsKnown(match) ? "text-gray-400 italic" : "text-gray-800"}`}>
                       {match.away_team}
                     </span>
+                    <div className="ml-[4.5rem] flex basis-full items-center justify-end gap-2 sm:ml-0 sm:basis-auto">
+                      {hasActualScore ? (
+                        <>
+                          <div className="w-16 shrink-0 text-right">
+                            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                              Uitslag
+                            </div>
+                            <div className={`text-sm font-black tabular-nums ${tone.result}`}>
+                              {match.home_score}-{match.away_score}
+                            </div>
+                          </div>
+                          <span
+                            className={`inline-flex w-14 shrink-0 items-center justify-center rounded-full px-2 py-1 text-xs font-black tabular-nums ${tone.badge}`}
+                          >
+                            {points} pt
+                          </span>
+                        </>
+                      ) : (
+                        <div className="hidden w-16 shrink-0 text-right text-xs text-gray-300 sm:block">
+                          -
+                        </div>
+                      )}
+                    </div>
                     {!matchIsOpen(match) && (
                       match.stage !== "group" && !knockoutTeamsKnown(match)
                         ? <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">nog niet bekend</span>
