@@ -165,6 +165,7 @@ const TEAM_NAME_MAP: Record<string, string> = {
   'Uzbekistan': 'Oezbekistan',
   'Bosnia and Herzegovina': 'Bosnië',
   'Bosnia Herzegovina': 'Bosnië',
+  'Bosnia-Herzegovina': 'Bosnië',
   'Czech Republic': 'Tsjechië',
   'Czechia': 'Tsjechië',
   'Scotland': 'Schotland',
