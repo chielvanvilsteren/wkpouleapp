@@ -147,14 +147,14 @@ export default function PredictieForm({
           <div className="flex items-end gap-6">
             <div>
               <span className="text-4xl font-bold">{score.totaal}</span>
-              <span className="text-white/70 ml-1">/ 37</span>
+              <span className="text-white/70 ml-1">/ 11</span>
             </div>
             <div className="text-sm text-white/80 space-y-0.5">
               <div>
-                Selectie: <strong>{score.selectie_punten}</strong> / 26
+                Selectie goed: <strong>{score.selectie_punten}</strong> / 26
               </div>
               <div>
-                Basis XI: <strong>{score.basis_xi_punten}</strong> / 11
+                Basis XI score: <strong>{score.basis_xi_punten}</strong> / 11
               </div>
             </div>
           </div>

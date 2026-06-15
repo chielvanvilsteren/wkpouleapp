@@ -148,8 +148,8 @@ export default function RanglijstTabs({ entries, scoresZichtbaar, wkScoresZichtb
                 <th className="px-4 py-3 text-left">Naam</th>
                 {tab === 'pre' && scoresZichtbaar && (
                   <>
-                    <th className="px-4 py-3 text-center">Selectie</th>
-                    <th className="px-4 py-3 text-center">Basis XI</th>
+                    <th className="px-4 py-3 text-center">Selectie goed</th>
+                    <th className="px-4 py-3 text-center">Basis XI score</th>
                     <th className="px-4 py-3 text-center font-bold">Totaal</th>
                   </>
                 )}

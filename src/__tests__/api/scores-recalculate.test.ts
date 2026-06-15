@@ -178,7 +178,7 @@ describe('POST /api/scores/recalculate', () => {
     const upsertArg = upsertChain.upsert.mock.calls[0][0]
     expect(upsertArg[0].selectie_punten).toBe(1)
     expect(upsertArg[0].basis_xi_punten).toBe(2)
-    expect(upsertArg[0].totaal).toBe(3)
+    expect(upsertArg[0].totaal).toBe(2)
   })
 
   it('handles null uitslag.selectie and uitslag.basis_xi (uses ?? [] fallback)', async () => {

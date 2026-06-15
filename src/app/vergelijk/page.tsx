@@ -202,8 +202,8 @@ function VergelijkInner() {
                   <tbody>
                     {data.scoresVisible && data.a.scores && data.b.scores && (
                       <>
-                        <ScoreRow label="Selectie" valA={data.a.scores.selectie_punten} valB={data.b.scores.selectie_punten} />
-                        <ScoreRow label="Basis XI" valA={data.a.scores.basis_xi_punten} valB={data.b.scores.basis_xi_punten} />
+                        <ScoreRow label="Selectie goed" valA={data.a.scores.selectie_punten} valB={data.b.scores.selectie_punten} />
+                        <ScoreRow label="Basis XI score" valA={data.a.scores.basis_xi_punten} valB={data.b.scores.basis_xi_punten} />
                         <tr className="border-b border-gray-200 bg-oranje-50">
                           <td className="px-4 py-2 text-center">
                             <span className="font-black text-xl text-oranje-600">{data.a.scores.totaal}</span>

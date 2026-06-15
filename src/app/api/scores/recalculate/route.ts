@@ -21,7 +21,7 @@ export async function POST() {
   const upsertData = predictions.map((pred) => {
     const selectiePunten = countMatches(pred.selectie ?? [], uitslag.selectie ?? [])
     const basisXiPunten = countMatches(pred.basis_xi ?? [], uitslag.basis_xi ?? [])
-    const totaal = selectiePunten + basisXiPunten
+    const totaal = basisXiPunten
 
     return {
       user_id: pred.user_id,
@@ -46,11 +46,15 @@ export async function POST() {
   }
 
   const creditGrants = upsertData
-    .filter((row) => row.totaal > 0)
+    .map((row) => ({
+      user_id: row.user_id,
+      amount: row.selectie_punten + row.basis_xi_punten,
+    }))
+    .filter((row) => row.amount > 0)
     .map((row) => ({
       user_id: row.user_id,
       granted_by: user.id,
-      amount: row.totaal,
+      amount: row.amount,
       note: 'pre-poule',
       season: 2,
     }))
@@ -64,9 +68,10 @@ export async function POST() {
   // Push notifications fire-and-forget
   for (const row of upsertData) {
     if (row.totaal > 0) {
+      const credits = row.selectie_punten + row.basis_xi_punten
       sendPushToUser(supabase, row.user_id, {
         title: '⚽ Pre Poule scores bijgewerkt!',
-        body: `Jouw score: ${row.totaal} punten · Je hebt ${row.totaal} Flappy Bal credits verdiend`,
+        body: `Jouw basis XI-score: ${row.totaal} punten · Je hebt ${credits} Flappy Bal credits verdiend`,
         url: '/ranglijst',
       }).catch(() => {/* ignore */})
     }

@@ -30,7 +30,7 @@ const score: Score = {
   user_id: "user-1",
   selectie_punten: 20,
   basis_xi_punten: 8,
-  totaal: 28,
+  totaal: 8,
   updated_at: "2026-01-01T00:00:00Z",
 };
 
@@ -92,7 +92,7 @@ describe("PredictieForm", () => {
         score={score}
       />,
     );
-    expect(screen.getByText("28")).toBeInTheDocument();
+    expect(screen.getAllByText("8").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Pre-pool score/)).toBeInTheDocument();
   });
 

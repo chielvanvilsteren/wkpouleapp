@@ -139,12 +139,12 @@ Als je CORS-fouten krijgt: ga in Supabase naar **Authentication → URL Configur
 
 | Categorie | Punten | Max |
 |-----------|--------|-----|
-| Elke speler in de officiële selectie (26 spelers) | 1 pt/speler | 26 |
+| Officiële selectie (26 spelers) | invoer/vergelijking, telt niet mee | 0 |
 | Elke speler in de Basis XI vs. Japan (11 spelers) | 1 pt/speler | 11 |
 | Eerste rode kaart (correcte speler) | 10 pt | 10 |
 | Eerste gele kaart (correcte speler) | 10 pt | 10 |
 | Eerste geblesseerde (correcte speler) | 10 pt | 10 |
-| **Totaal** | | **67** |
+| **Totaal** | | **41** |
 
 Vergelijking is hoofdletterongevoelig, witruimte wordt genegeerd.
 

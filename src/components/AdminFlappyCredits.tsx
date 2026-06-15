@@ -179,7 +179,7 @@ export default function AdminFlappyCredits() {
         </tbody>
       </table>
       <p className="mt-4 text-xs text-gray-400">
-        Pre-poule = selectie + Basis XI · WK-poule = correcte voorspellingen
+        Pre-poule credits = selectie + Basis XI · WK-poule = correcte voorspellingen
         (5 exact, 2 goed resultaat) · Extra = handmatig toegekend ·
         Gespeeld = verbruikte credits (seizoen 2)
       </p>

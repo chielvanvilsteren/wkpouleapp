@@ -131,7 +131,7 @@ export default async function LandingPage() {
               <div className="text-sm text-gray-500 mt-0.5">Poules</div>
             </div>
             <div>
-              <div className="text-3xl font-black text-knvb-600">37+</div>
+              <div className="text-3xl font-black text-knvb-600">11+</div>
               <div className="text-sm text-gray-500 mt-0.5">
                 Max punten pre-poule
               </div>
@@ -155,8 +155,8 @@ export default async function LandingPage() {
             </p>
             <ul className="text-sm text-gray-600 space-y-1">
               <li>
-                ✓ 1 punt per correct selectiespeler{" "}
-                <span className="text-gray-400">(max 26)</span>
+                ✓ Selectie voorspellen voor de WK-poule{" "}
+                <span className="text-gray-400">(telt niet mee)</span>
               </li>
               <li>
                 ✓ 1 punt per correcte basis XI-speler{" "}

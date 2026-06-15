@@ -83,7 +83,7 @@ export default async function MijnVoorspellingPage() {
         badge="Pre-Pool"
         subtitle={
           <>
-            Selectie (26 spelers) + Basis XI — maximaal 37 punten &middot;{" "}
+            Basis XI — maximaal 11 punten &middot;{" "}
             {statusNode}
           </>
         }

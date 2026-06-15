@@ -1,5 +1,7 @@
 export function normalize(s: string | null | undefined): string {
-  return (s ?? '').trim().toLowerCase()
+  const normalized = (s ?? '').trim().toLowerCase()
+  if (normalized === 'micky van der ven') return 'micky van de ven'
+  return normalized
 }
 
 export function countMatches(predictions: string[], master: string[]): number {
