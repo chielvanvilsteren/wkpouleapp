@@ -162,9 +162,35 @@ describe('GET /api/admin/flappy-credits', () => {
     expect(body).toHaveLength(1)
     const alice = body[0]
     expect(alice.adminGrants).toBe(5)
+    expect(alice.manualGrants).toBe(5)
+    expect(alice.prePouleCredits).toBe(0)
     expect(alice.spent).toBe(2)
     expect(alice.available).toBe(3) // 5 - 2
     expect(alice.wkCredits).toBe(0)
+  })
+
+  it('separates pre-poule credits from manual extra grants', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin' } } })
+    setupAdminMocks({
+      profiles: { data: [{ id: 'u1', display_name: 'Alice' }], error: null },
+      grants: {
+        data: [
+          { user_id: 'u1', amount: 11, note: 'pre-poule', granted_at: '2026-06-15' },
+          { user_id: 'u1', amount: 3, note: 'bonus', granted_at: '2026-06-15' },
+        ],
+        error: null,
+      },
+      spent: { data: [{ user_id: 'u1' }], error: null },
+      allPreds: { data: [], error: null },
+    })
+
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body[0].prePouleCredits).toBe(11)
+    expect(body[0].manualGrants).toBe(3)
+    expect(body[0].adminGrants).toBe(3)
+    expect(body[0].available).toBe(13)
   })
 
   it('computes wkCredits: exact=5, correct result=2, neither=0', async () => {
@@ -245,6 +271,8 @@ describe('GET /api/admin/flappy-credits', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body[0].adminGrants).toBe(0)
+    expect(body[0].manualGrants).toBe(0)
+    expect(body[0].prePouleCredits).toBe(0)
     expect(body[0].spent).toBe(0)
     expect(body[0].wkCredits).toBe(0)
     expect(body[0].available).toBe(0)

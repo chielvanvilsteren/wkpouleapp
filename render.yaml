@@ -48,10 +48,9 @@ crons:
         sync: false
 
   - name: sync-match-results-wk
-    # Elk uur op het half uur (xx:30) — het script checkt zelf of er een
-    # wedstrijd is die 2-4,5 uur geleden is begonnen. Zo niet: stille skip.
-    # Eerste poging: ~2,5u na aftrap. Herpoging: ~3,5u na aftrap.
-    schedule: "30 * * * *"
+    # Elke 30 minuten — het script checkt zelf of er een wedstrijd is die
+    # 2-6 uur geleden is begonnen. Zo niet: stille skip.
+    schedule: "*/30 * * * *"
     command: >-
       curl -s -X POST
       -H "Authorization: Bearer $SYNC_SECRET_TOKEN"

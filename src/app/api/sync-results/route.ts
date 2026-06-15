@@ -6,7 +6,7 @@
  * 2. Ingelogde admin-sessie (Supabase cookie)   — voor de admin UI knop
  */
 
-import { createClient as createApiClient } from '@supabase/supabase-js'
+import { createClient as createApiClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -15,7 +15,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const SYNC_SECRET_TOKEN = process.env.SYNC_SECRET_TOKEN
 const WK_COMPETITION_ID = 2000
-const LOOKBACK_HOURS = 3
+const LOOKBACK_HOURS = 6
 const ADMIN_LOOKBACK_HOURS = 48
 const WK_START = new Date('2026-06-11T00:00:00Z')
 
@@ -24,7 +24,7 @@ const CEST_OFFSET_HOURS = 2
 
 // Venster waarbinnen een uitslag verwacht wordt na aftrap (in minuten)
 const WINDOW_MIN_MINUTES = 2 * 60        // 2 uur na aftrap (vroegst)
-const WINDOW_MAX_MINUTES = 4.5 * 60     // 4,5 uur na aftrap (uiterst voor herpoging)
+const WINDOW_MAX_MINUTES = 6 * 60       // 6 uur na aftrap (ruimte voor API-latency/herpogingen)
 
 interface ApiMatch {
   id: number
@@ -95,6 +95,36 @@ function describeSupabaseError(context: string, err: SupabaseLikeError): string 
   return `${context}: ${details}`
 }
 
+async function isAdminSession(supabase: SupabaseClient): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single()
+
+  return profile?.is_admin === true
+}
+
+function createBearerSupabase(authHeader: string): SupabaseClient | null {
+  if (!SUPABASE_ANON_KEY || !authHeader.toLowerCase().startsWith('bearer ')) return null
+
+  return createApiClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false },
+    global: { headers: { Authorization: authHeader } },
+  })
+}
+
+function dutchMatchTimeToUtcMs(matchDate: string, matchTime: string): number {
+  const [year, month, day] = matchDate.split('-').map(Number)
+  const [hour = 0, minute = 0, second = 0] = matchTime.split(':').map(Number)
+
+  return Date.UTC(year, month - 1, day, hour, minute, second)
+    - CEST_OFFSET_HOURS * 60 * 60 * 1000
+}
+
 export async function POST(req: NextRequest) {
   // Auth: accepteer SYNC_SECRET_TOKEN (cronjob) OF ingelogde admin (browser)
   const authHeader = req.headers.get('authorization') ?? ''
@@ -102,22 +132,34 @@ export async function POST(req: NextRequest) {
 
   let isAuthorized = false
   let triggeredBy = 'cron'
-  let userScopedSupabase: Awaited<ReturnType<typeof createClient>> | null = null
+  let userScopedSupabase: SupabaseClient | null = null
 
   if (SYNC_SECRET_TOKEN && bearerToken === SYNC_SECRET_TOKEN) {
     isAuthorized = true
   } else {
-    // Controleer Supabase admin-sessie
+    // Controleer Supabase admin-sessie via cookies, met bearer-token fallback voor fetches vanuit de admin UI.
     try {
       const supabaseUser = await createClient()
-      userScopedSupabase = supabaseUser
-      const { data: { user } } = await supabaseUser.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabaseUser.from('profiles').select('is_admin').eq('id', user.id).single()
-        if (profile?.is_admin) { isAuthorized = true; triggeredBy = 'admin' }
+      if (await isAdminSession(supabaseUser)) {
+        userScopedSupabase = supabaseUser
+        isAuthorized = true
+        triggeredBy = 'admin'
       }
     } catch {
       // sessie check mislukt → niet geautoriseerd
+    }
+
+    if (!isAuthorized) {
+      try {
+        const bearerSupabase = createBearerSupabase(authHeader)
+        if (bearerSupabase && await isAdminSession(bearerSupabase)) {
+          userScopedSupabase = bearerSupabase
+          isAuthorized = true
+          triggeredBy = 'admin'
+        }
+      } catch {
+        // bearer check mislukt → niet geautoriseerd
+      }
     }
   }
 
@@ -232,23 +274,28 @@ export async function POST(req: NextRequest) {
     if (isDaily && Date.now() >= WK_START.getTime()) {
       return NextResponse.json({ skipped: true, message: 'WK is begonnen — dagelijkse check niet meer actief.' })
     }
-    const { data: pendingMatches } = await supabase
+    const { data: pendingMatches, error: pendingErr } = await supabase
       .from('matches')
       .select('match_date, match_time')
       .eq('is_finished', false)
       .not('match_time', 'is', null)
 
+    if (pendingErr) {
+      const msg = describeSupabaseError('Open wedstrijden ophalen mislukt', pendingErr)
+      await writeLog('error', msg)
+      return NextResponse.json({ error: msg }, { status: 500 })
+    }
+
     const nowMs = Date.now()
     const inWindow = (pendingMatches ?? []).some((m) => {
       // Combineer datum + tijd in CEST → UTC
-      const kickoffCest = new Date(`${m.match_date}T${m.match_time}`)
-      const kickoffUtc = kickoffCest.getTime() - CEST_OFFSET_HOURS * 60 * 60 * 1000
+      const kickoffUtc = dutchMatchTimeToUtcMs(m.match_date, m.match_time)
       const minutesAgo = (nowMs - kickoffUtc) / 60_000
       return minutesAgo >= WINDOW_MIN_MINUTES && minutesAgo <= WINDOW_MAX_MINUTES
     })
 
     if (!inWindow) {
-      const skipMsg = 'Geen wedstrijd in het synchronisatievenster (2-4,5u na aftrap).'
+      const skipMsg = 'Geen wedstrijd in het synchronisatievenster (2-6u na aftrap).'
       // Alleen dagelijkse check logt — zo kan admin zien dat de cron draait.
       // WK-cron (elk half uur) blijft stil om ruis te vermijden.
       if (isDaily) {

@@ -1,6 +1,16 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import SyncResultsButton from '@/components/SyncResultsButton'
 
+const mockGetSession = jest.fn()
+
+jest.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    auth: {
+      getSession: mockGetSession,
+    },
+  }),
+}))
+
 function mockFetch(response: object, ok = true, reject = false) {
   global.fetch = jest.fn(() => {
     if (reject) return Promise.reject(new Error('Network error'))
@@ -12,8 +22,15 @@ function mockFetch(response: object, ok = true, reject = false) {
 }
 
 describe('SyncResultsButton', () => {
+  beforeEach(() => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: 'admin-access-token' } },
+    })
+  })
+
   afterEach(() => {
     jest.restoreAllMocks()
+    mockGetSession.mockReset()
   })
 
   it('renders idle button', () => {
@@ -46,6 +63,22 @@ describe('SyncResultsButton', () => {
       expect(screen.getByText(/3 uitslagen bijgewerkt/)).toBeInTheDocument()
     })
     expect(screen.getByText(/Scores worden automatisch herberekend/)).toBeInTheDocument()
+  })
+
+  it('sends the Supabase access token to the sync route', async () => {
+    mockFetch({ updated: 1, skipped: 0, unmatched: 0, log: [] })
+    render(<SyncResultsButton />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'))
+    })
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/sync-results', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer admin-access-token' },
+      })
+    })
   })
 
   it('shows singular uitslag when updated === 1', async () => {

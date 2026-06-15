@@ -76,12 +76,23 @@ async function fetchScores(): Promise<ScoreEntry[]> {
   }))
 }
 
-async function fetchCredits(): Promise<{ available: number; wkCredits: number }> {
+async function fetchCredits(): Promise<{
+  available: number
+  wkCredits: number
+  prePouleCredits: number
+  manualGrants: number
+}> {
   try {
     const res = await fetch('/api/flappy-credits')
-    if (!res.ok) return { available: 0, wkCredits: 0 }
-    return res.json()
-  } catch { return { available: 0, wkCredits: 0 } }
+    if (!res.ok) return { available: 0, wkCredits: 0, prePouleCredits: 0, manualGrants: 0 }
+    const data = await res.json()
+    return {
+      available: data.available ?? 0,
+      wkCredits: data.wkCredits ?? 0,
+      prePouleCredits: data.prePouleCredits ?? 0,
+      manualGrants: data.manualGrants ?? data.adminGrants ?? 0,
+    }
+  } catch { return { available: 0, wkCredits: 0, prePouleCredits: 0, manualGrants: 0 } }
 }
 
 async function startSession(): Promise<{ sessionId: string; newBalance: number } | null> {
@@ -589,7 +600,11 @@ export default function FootballGame({
   const gameFpsRef = useRef<number | null>(null)
   const gameStartTimeRef = useRef<number | null>(null)
   const gameDurationRef = useRef<number | null>(null)
-  const [creditBreakdown, setCreditBreakdown] = useState({ wkCredits: 0 })
+  const [creditBreakdown, setCreditBreakdown] = useState({
+    prePouleCredits: 0,
+    wkCredits: 0,
+    manualGrants: 0,
+  })
 
   const [viewport, setViewport] = useState(() => ({
     w: typeof window !== 'undefined' ? window.innerWidth  : W,
@@ -613,10 +628,10 @@ export default function FootballGame({
 
   // Fetch credits on mount
   useEffect(() => {
-    fetchCredits().then(({ available, wkCredits }) => {
+    fetchCredits().then(({ available, prePouleCredits, wkCredits, manualGrants }) => {
       setCredits(available)
       creditsRef.current = available
-      setCreditBreakdown({ wkCredits })
+      setCreditBreakdown({ prePouleCredits, wkCredits, manualGrants })
     })
   }, [])
 
@@ -842,10 +857,12 @@ export default function FootballGame({
                 )}
                 <span className="text-white/50 text-sm">credits</span>
               </div>
-              <div className="flex justify-center gap-3 text-xs text-white/35 mt-1">
-                <span>{playerName}</span>
-                <span>·</span>
+              <div className="flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-xs text-white/35 mt-1">
+                <span>Pre-poule: {creditBreakdown.prePouleCredits}</span>
                 <span>Uitslagen: {creditBreakdown.wkCredits}</span>
+                {creditBreakdown.manualGrants !== 0 && (
+                  <span>Extra: {creditBreakdown.manualGrants}</span>
+                )}
               </div>
               {credits === 0 && (
                 <p className="text-red-400/80 text-xs mt-1">Voorspel juist om credits te verdienen</p>

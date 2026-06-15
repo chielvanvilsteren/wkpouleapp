@@ -285,8 +285,9 @@ export default async function AdminPage() {
             <div className="card">
               <h2 className="section-title">Synchronisatie berichten</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Overzicht van alle uitslag-syncs. De cronjob draait dagelijks om
-                10:00 (CEST). Tijdens het WK elke 30 minuten.
+                Overzicht van alle uitslag-syncs. De API-check draait dagelijks
+                om 12:00 (CEST). Tijdens het WK haalt de uitslagen-cron elke 30
+                minuten op.
               </p>
               <div className="mb-6">
                 <AdminDailySyncTest />

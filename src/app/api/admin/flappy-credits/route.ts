@@ -4,6 +4,13 @@ import { sendPushToUser } from '@/lib/push'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
+type CreditGrant = {
+  user_id: string
+  amount: number
+  note: string | null
+  granted_at: string
+}
+
 async function checkAdmin(supabase: SupabaseClient, userId: string) {
   const { data } = await supabase
     .from('profiles')
@@ -32,7 +39,7 @@ export async function GET() {
   const userIds = profiles.map((p) => p.id)
 
   const [
-    { data: grants },
+    { data: grantsRaw },
     { data: spent },
     { data: allPreds },
   ] = await Promise.all([
@@ -65,9 +72,16 @@ export async function GET() {
     if (matches) matchMap = new Map(matches.map((m) => [m.id, m]))
   }
 
+  const grants = (grantsRaw ?? []) as CreditGrant[]
+
   const result = profiles.map((profile) => {
-    const adminGrants = (grants ?? [])
+    const prePouleCredits = grants
+      .filter((g) => g.user_id === profile.id && g.note === 'pre-poule')
+      .reduce((sum, g) => sum + g.amount, 0)
+
+    const manualGrants = grants
       .filter((g) => g.user_id === profile.id)
+      .filter((g) => g.note !== 'pre-poule')
       .reduce((sum, g) => sum + g.amount, 0)
 
     const spentCount = (spent ?? []).filter((s) => s.user_id === profile.id).length
@@ -87,14 +101,16 @@ export async function GET() {
       }
     }
 
-    const totalEarned = wkCredits + adminGrants
+    const totalEarned = wkCredits + prePouleCredits + manualGrants
     const available = totalEarned - spentCount
 
     return {
       id: profile.id,
       display_name: profile.display_name,
+      prePouleCredits,
       wkCredits,
-      adminGrants,
+      manualGrants,
+      adminGrants: manualGrants,
       spent: spentCount,
       available,
     }

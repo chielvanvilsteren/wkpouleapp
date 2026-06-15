@@ -15,6 +15,12 @@ jest.mock('@/lib/supabase/server', () => ({
   })),
 }))
 
+function resetMocks() {
+  mockGetUser.mockReset()
+  mockRpc.mockReset()
+  mockFrom.mockReset()
+}
+
 // Helper: build a full chain for getBalance queries
 function makeBalanceChain(result: object) {
   return {
@@ -43,16 +49,28 @@ function setupBalanceMocks({
       }
     }
     if (table === 'flappy_credit_grants') {
-      return {
+      let eqCalls = 0
+      const chain = {
         select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue(grants),
+        eq: jest.fn(),
       }
+      chain.eq.mockImplementation(() => {
+        eqCalls += 1
+        return eqCalls >= 2 ? Promise.resolve(grants) : chain
+      })
+      return chain
     }
     if (table === 'flappy_credit_log') {
-      return {
+      let eqCalls = 0
+      const chain = {
         select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue(spent),
+        eq: jest.fn(),
       }
+      chain.eq.mockImplementation(() => {
+        eqCalls += 1
+        return eqCalls >= 2 ? Promise.resolve(spent) : chain
+      })
+      return chain
     }
     return {
       select: jest.fn().mockReturnThis(),
@@ -62,11 +80,24 @@ function setupBalanceMocks({
   })
 }
 
+function twoEqChain(result: object) {
+  let eqCalls = 0
+  const chain = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn(),
+  }
+  chain.eq.mockImplementation(() => {
+    eqCalls += 1
+    return eqCalls >= 2 ? Promise.resolve(result) : chain
+  })
+  return chain
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/flappy-credits
 // ─────────────────────────────────────────────────────────────────────────────
 describe('GET /api/flappy-credits', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(resetMocks)
 
   it('returns 401 when not logged in', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
@@ -80,15 +111,41 @@ describe('GET /api/flappy-credits', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     setupBalanceMocks({
       matchPreds: { data: [], error: null },
-      grants: { data: [{ amount: 4 }], error: null },
+      grants: { data: [{ amount: 4, note: 'bonus' }], error: null },
       spent: { data: null, count: 2, error: null },
     })
     const res = await GET()
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.adminGrants).toBe(4)
+    expect(body.manualGrants).toBe(4)
+    expect(body.prePouleCredits).toBe(0)
     expect(body.totalSpent).toBe(2)
     expect(body.available).toBe(2) // 4 - 2
+  })
+
+  it('returns pre-poule credits separately from manual grants', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    setupBalanceMocks({
+      matchPreds: { data: [], error: null },
+      grants: {
+        data: [
+          { amount: 9, note: 'pre-poule' },
+          { amount: 2, note: 'bonus' },
+        ],
+        error: null,
+      },
+      spent: { data: null, count: 3, error: null },
+    })
+
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body.prePouleCredits).toBe(9)
+    expect(body.manualGrants).toBe(2)
+    expect(body.adminGrants).toBe(2)
+    expect(body.totalEarned).toBe(11)
+    expect(body.available).toBe(8)
   })
 
   it('returns balance with wkCredits for exact and correct-result predictions', async () => {
@@ -122,16 +179,10 @@ describe('GET /api/flappy-credits', () => {
         }
       }
       if (table === 'flappy_credit_grants') {
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({ data: [], error: null }),
-        }
+        return twoEqChain({ data: [], error: null })
       }
       if (table === 'flappy_credit_log') {
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({ data: null, count: 0, error: null }),
-        }
+        return twoEqChain({ data: null, count: 0, error: null })
       }
       return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: null, error: null }) }
     })
@@ -169,7 +220,7 @@ function makePostRequest(body: object) {
 }
 
 describe('POST /api/flappy-credits — start', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(resetMocks)
 
   it('returns 401 when not logged in', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
@@ -215,7 +266,7 @@ describe('POST /api/flappy-credits — start', () => {
 // POST /api/flappy-credits — action: 'save'
 // ─────────────────────────────────────────────────────────────────────────────
 describe('POST /api/flappy-credits — save', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(resetMocks)
 
   it('returns 400 when sessionId is missing', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
@@ -245,40 +296,41 @@ describe('POST /api/flappy-credits — save', () => {
 
   it('returns 409 on duplicate score (23505)', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockFrom.mockReturnValue({
-      insert: jest.fn().mockResolvedValue({ error: { code: '23505', message: 'duplicate' } }),
-    })
+    mockRpc.mockResolvedValue({ data: null, error: { code: '23505', message: 'duplicate' } })
     const res = await POST(makePostRequest({ action: 'save', sessionId: 's1', score: 42 }))
     expect(res.status).toBe(409)
     const body = await res.json()
     expect(body.error).toBe('Score al opgeslagen voor dit potje')
   })
 
-  it('returns 403 on RLS error with code 42501', async () => {
+  it('returns 403 when the session is invalid', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockFrom.mockReturnValue({
-      insert: jest.fn().mockResolvedValue({ error: { code: '42501', message: 'permission denied' } }),
-    })
+    mockRpc.mockResolvedValue({ data: null, error: { code: 'P0001', message: 'invalid session' } })
     const res = await POST(makePostRequest({ action: 'save', sessionId: 's1', score: 10 }))
     expect(res.status).toBe(403)
     const body = await res.json()
     expect(body.error).toBe('Ongeldige sessie')
   })
 
-  it('returns 403 on RLS error with row-level security in message', async () => {
+  it('returns 403 when the session is expired', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockFrom.mockReturnValue({
-      insert: jest.fn().mockResolvedValue({ error: { code: 'OTHER', message: 'new row violates row-level security policy' } }),
-    })
+    mockRpc.mockResolvedValue({ data: null, error: { code: 'P0002', message: 'expired' } })
     const res = await POST(makePostRequest({ action: 'save', sessionId: 's1', score: 10 }))
     expect(res.status).toBe(403)
   })
 
-  it('returns 500 on other insert error', async () => {
+  it('returns 403 when the score is impossible for the play duration', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockFrom.mockReturnValue({
-      insert: jest.fn().mockResolvedValue({ error: { code: 'XXXXX', message: 'unknown db error' } }),
-    })
+    mockRpc.mockResolvedValue({ data: null, error: { code: 'P0003', message: 'too fast' } })
+    const res = await POST(makePostRequest({ action: 'save', sessionId: 's1', score: 10 }))
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error).toBe('Score niet mogelijk in de speeltijd')
+  })
+
+  it('returns 500 on other rpc error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockRpc.mockResolvedValue({ data: null, error: { code: 'XXXXX', message: 'unknown db error' } })
     const res = await POST(makePostRequest({ action: 'save', sessionId: 's1', score: 10 }))
     expect(res.status).toBe(500)
     const body = await res.json()
@@ -287,9 +339,7 @@ describe('POST /api/flappy-credits — save', () => {
 
   it('returns { ok: true } on successful save', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockFrom.mockReturnValue({
-      insert: jest.fn().mockResolvedValue({ error: null }),
-    })
+    mockRpc.mockResolvedValue({ data: null, error: null })
     const res = await POST(makePostRequest({ action: 'save', sessionId: 's1', score: 99 }))
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -301,7 +351,7 @@ describe('POST /api/flappy-credits — save', () => {
 // POST /api/flappy-credits — unknown action
 // ─────────────────────────────────────────────────────────────────────────────
 describe('POST /api/flappy-credits — unknown action', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(resetMocks)
 
   it('returns 400 for unknown action', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })

@@ -96,6 +96,50 @@ describe('GET /api/stats', () => {
     })
   })
 
+  it('shows pre-pool stats once the pre-pool deadline has passed even before scores are visible', async () => {
+    setupStatsMocks({
+      master: {
+        inzendingen_open: true,
+        inzendingen_deadline: '2026-06-12T11:59:00.000Z',
+        scores_zichtbaar: false,
+        wk_scores_zichtbaar: false,
+        wk_poule_open: true,
+        wk_poule_deadline: '2026-06-13T12:00:00.000Z',
+        selectie: [],
+        basis_xi: [],
+      },
+    })
+
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body.pre_locked).toBe(false)
+    expect(body.inzendingen_deadline_passed).toBe(true)
+    expect(body.total_pre).toBe(0)
+    expect(mockFrom).toHaveBeenCalledWith('predictions')
+  })
+
+  it('keeps pre-pool stats locked while the pre-pool deadline is still in the future', async () => {
+    setupStatsMocks({
+      master: {
+        inzendingen_open: true,
+        inzendingen_deadline: '2026-06-12T12:01:00.000Z',
+        scores_zichtbaar: false,
+        wk_scores_zichtbaar: false,
+        wk_poule_open: true,
+        wk_poule_deadline: '2026-06-13T12:00:00.000Z',
+        selectie: [],
+        basis_xi: [],
+      },
+    })
+
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body.pre_locked).toBe(true)
+    expect(body.inzendingen_deadline_passed).toBe(false)
+  })
+
   it('keeps WK stats locked while the deadline is still in the future', async () => {
     setupStatsMocks({
       master: {

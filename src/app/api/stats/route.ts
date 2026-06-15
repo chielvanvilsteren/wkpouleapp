@@ -14,6 +14,12 @@ function mapToArr(countMap: Map<string, number>, pickersMap: Map<string, string[
     .sort((a, b) => b.count - a.count)
 }
 
+function isPassed(dateValue: string | null | undefined) {
+  if (!dateValue) return false
+  const date = new Date(dateValue)
+  return !Number.isNaN(date.getTime()) && Date.now() >= date.getTime()
+}
+
 export async function GET() {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   const admin = createClient(
@@ -24,13 +30,16 @@ export async function GET() {
 
   const { data: uitslag } = await admin
     .from('master_uitslag')
-    .select('inzendingen_open, wk_poule_open, wk_poule_deadline, scores_zichtbaar, wk_scores_zichtbaar, selectie, basis_xi')
+    .select('inzendingen_open, inzendingen_deadline, wk_poule_open, wk_poule_deadline, scores_zichtbaar, wk_scores_zichtbaar, selectie, basis_xi')
     .eq('id', 1)
     .single()
 
+  const preDeadlinePassed = isPassed(uitslag?.inzendingen_deadline as string | null | undefined)
   const preLocked = !(uitslag?.scores_zichtbaar ?? false)
-  const wkDeadline = uitslag?.wk_poule_deadline ? new Date(uitslag.wk_poule_deadline as string) : null
-  const wkDeadlinePassed = wkDeadline !== null && !Number.isNaN(wkDeadline.getTime()) && Date.now() >= wkDeadline.getTime()
+    && (uitslag?.inzendingen_open ?? true)
+    && !preDeadlinePassed
+
+  const wkDeadlinePassed = isPassed(uitslag?.wk_poule_deadline as string | null | undefined)
   const wkLocked = (uitslag?.wk_poule_open ?? true) && !wkDeadlinePassed
 
   const { data: profiles } = await admin
@@ -42,6 +51,8 @@ export async function GET() {
   const result: Record<string, unknown> = {
     pre_locked: preLocked,
     wk_locked: wkLocked,
+    inzendingen_deadline_passed: preDeadlinePassed,
+    wk_poule_deadline_passed: wkDeadlinePassed,
     scores_zichtbaar: uitslag?.scores_zichtbaar ?? false,
     wk_scores_zichtbaar: uitslag?.wk_scores_zichtbaar ?? false,
     official_selectie: uitslag?.selectie ?? [],

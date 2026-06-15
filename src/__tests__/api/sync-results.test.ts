@@ -108,6 +108,87 @@ describe('POST /api/sync-results', () => {
     expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain(`dateFrom=${expectedDateFrom}`)
   })
 
+  it('accepts an admin Supabase bearer token when cookie auth is unavailable', async () => {
+    setupEnv()
+    mockFootballData()
+
+    const bearerClient = {
+      auth: {
+        getUser: jest.fn(() => Promise.resolve({ data: { user: { id: 'admin-user' } } })),
+      },
+      rpc: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      from: jest.fn((table: string) => {
+        if (table === 'profiles') {
+          return {
+            select: jest.fn(() => ({
+              eq: jest.fn(() => ({
+                single: jest.fn(() => Promise.resolve({ data: { is_admin: true }, error: null })),
+              })),
+            })),
+          }
+        }
+
+        if (table === 'matches') {
+          return {
+            select: jest.fn(() => ({
+              or: jest.fn(() => Promise.resolve({
+                data: [{
+                  id: 1,
+                  match_number: 1,
+                  external_api_id: null,
+                  home_team: 'Mexico',
+                  away_team: 'Zuid-Afrika',
+                  home_score: null,
+                  away_score: null,
+                  is_finished: false,
+                }],
+                error: null,
+              })),
+            })),
+            update: jest.fn(() => ({
+              eq: jest.fn(() => Promise.resolve({ error: null })),
+            })),
+          }
+        }
+
+        return {
+          insert: jest.fn(() => Promise.resolve({ error: null })),
+        }
+      }),
+    }
+    const cookieClient = {
+      auth: {
+        getUser: jest.fn(() => Promise.resolve({ data: { user: null } })),
+      },
+    }
+
+    const createServiceClient = jest.fn(() => bearerClient)
+    jest.doMock('@supabase/supabase-js', () => ({
+      createClient: createServiceClient,
+    }))
+    jest.doMock('@/lib/supabase/server', () => ({
+      createClient: jest.fn(() => Promise.resolve(cookieClient)),
+    }))
+
+    const { POST } = await import('@/app/api/sync-results/route')
+    const res = await POST(new NextRequest('http://localhost:3000/api/sync-results', {
+      method: 'POST',
+      headers: { authorization: 'Bearer admin-access-token' },
+    }))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.updated).toBe(1)
+    expect(createServiceClient).toHaveBeenCalledWith(
+      'https://project.supabase.co',
+      'anon-key',
+      {
+        auth: { persistSession: false },
+        global: { headers: { Authorization: 'Bearer admin-access-token' } },
+      },
+    )
+  })
+
   it('uses the anon key and RPC path for cron syncs', async () => {
     setupEnv()
 
@@ -141,5 +222,49 @@ describe('POST /api/sync-results', () => {
       'anon-key',
       { auth: { persistSession: false } },
     )
+  })
+
+  it('runs cron sync when a pending match is inside the Dutch result window', async () => {
+    setupEnv()
+    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-06-15T21:30:00Z').getTime())
+    global.fetch = jest.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ matches: [] }),
+    } as Response))
+
+    const apiClient = {
+      rpc: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            not: jest.fn(() => Promise.resolve({
+              data: [{ match_date: '2026-06-15', match_time: '21:00:00' }],
+              error: null,
+            })),
+          })),
+        })),
+      })),
+    }
+
+    jest.doMock('@supabase/supabase-js', () => ({
+      createClient: jest.fn(() => apiClient),
+    }))
+    jest.doMock('@/lib/supabase/server', () => ({
+      createClient: jest.fn(),
+    }))
+
+    const { POST } = await import('@/app/api/sync-results/route')
+    const res = await POST(new NextRequest('http://localhost:3000/api/sync-results', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-sync-token-123456789012345678' },
+    }))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/matches?status=FINISHED'),
+      expect.any(Object),
+    )
+    expect(body.message).toContain('afgelopen 6 uur')
   })
 })

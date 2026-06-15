@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 type UserCredits = {
   id: string;
   display_name: string;
+  prePouleCredits: number;
   wkCredits: number;
-  adminGrants: number;
+  manualGrants: number;
   spent: number;
   available: number;
 };
@@ -74,8 +75,9 @@ export default function AdminFlappyCredits() {
         <thead>
           <tr className="border-b border-gray-200 text-gray-600 font-medium">
             <th className="text-left py-2 px-3">Naam</th>
+            <th className="text-center py-2 px-3">Pre-poule</th>
             <th className="text-center py-2 px-3">WK-poule</th>
-            <th className="text-center py-2 px-3">Admin</th>
+            <th className="text-center py-2 px-3">Extra</th>
             <th className="text-center py-2 px-3">Gespeeld</th>
             <th className="text-center py-2 px-3 font-semibold text-gray-800">
               ⚡ Beschikbaar
@@ -93,12 +95,21 @@ export default function AdminFlappyCredits() {
                 {u.display_name}
               </td>
               <td className="py-2.5 px-3 text-center text-gray-600">
-                {u.wkCredits}
+                {u.prePouleCredits > 0 ? (
+                  <span className="text-knvb-600 font-medium">
+                    +{u.prePouleCredits}
+                  </span>
+                ) : (
+                  "—"
+                )}
               </td>
               <td className="py-2.5 px-3 text-center text-gray-600">
-                {u.adminGrants > 0 ? (
+                {u.wkCredits > 0 ? u.wkCredits : "—"}
+              </td>
+              <td className="py-2.5 px-3 text-center text-gray-600">
+                {u.manualGrants > 0 ? (
                   <span className="text-knvb-600 font-medium">
-                    +{u.adminGrants}
+                    +{u.manualGrants}
                   </span>
                 ) : (
                   "—"
@@ -168,7 +179,8 @@ export default function AdminFlappyCredits() {
         </tbody>
       </table>
       <p className="mt-4 text-xs text-gray-400">
-        WK-poule = correcte voorspellingen (5 exact, 2 goed resultaat) ·
+        Pre-poule = selectie + Basis XI · WK-poule = correcte voorspellingen
+        (5 exact, 2 goed resultaat) · Extra = handmatig toegekend ·
         Gespeeld = verbruikte credits (seizoen 2)
       </p>
     </div>

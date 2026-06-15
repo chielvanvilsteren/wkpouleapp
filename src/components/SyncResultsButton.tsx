@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface SyncResult {
   updated?: number;
@@ -24,7 +25,12 @@ export default function SyncResultsButton() {
     setModalOpen(true);
 
     try {
-      const res = await fetch("/api/sync-results", { method: "POST" });
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      const res = await fetch("/api/sync-results", { method: "POST", headers });
       const data: SyncResult = await res.json();
 
       if (!res.ok) {

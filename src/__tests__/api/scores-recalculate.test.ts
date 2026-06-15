@@ -29,6 +29,8 @@ function makeChain(data: unknown, error: unknown = null) {
     eq: jest.fn().mockReturnThis(),
     single: jest.fn().mockResolvedValue({ data, error }),
     upsert: jest.fn().mockResolvedValue({ error }),
+    delete: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockResolvedValue({ error }),
   }
 }
 
@@ -37,6 +39,7 @@ describe('POST /api/scores/recalculate', () => {
     jest.clearAllMocks()
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key'
+    mockAdminFrom.mockReturnValue(makeChain(null))
   })
 
   it('returns 401 when no user', async () => {

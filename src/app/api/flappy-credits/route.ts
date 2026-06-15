@@ -37,10 +37,15 @@ async function getBalance(supabase: SupabaseClient, userId: string) {
 
   const { data: grants } = await supabase
     .from('flappy_credit_grants')
-    .select('amount')
+    .select('amount, note')
     .eq('user_id', userId)
     .eq('season', 2)
-  const adminGrants = (grants ?? []).reduce((sum, g) => sum + g.amount, 0)
+  const prePouleCredits = (grants ?? [])
+    .filter((g) => g.note === 'pre-poule')
+    .reduce((sum, g) => sum + g.amount, 0)
+  const manualGrants = (grants ?? [])
+    .filter((g) => g.note !== 'pre-poule')
+    .reduce((sum, g) => sum + g.amount, 0)
 
   const { count: spent } = await supabase
     .from('flappy_credit_log')
@@ -48,11 +53,19 @@ async function getBalance(supabase: SupabaseClient, userId: string) {
     .eq('user_id', userId)
     .eq('season', 2)
 
-  const totalEarned = wkCredits + adminGrants
+  const totalEarned = wkCredits + prePouleCredits + manualGrants
   const totalSpent = spent ?? 0
   const available = totalEarned - totalSpent
 
-  return { available, totalEarned, totalSpent, wkCredits, adminGrants }
+  return {
+    available,
+    totalEarned,
+    totalSpent,
+    wkCredits,
+    prePouleCredits,
+    manualGrants,
+    adminGrants: manualGrants,
+  }
 }
 
 export async function GET() {
