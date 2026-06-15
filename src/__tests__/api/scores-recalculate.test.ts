@@ -15,14 +15,6 @@ jest.mock('@/lib/supabase/server', () => ({
   createClient: jest.fn(() => Promise.resolve(mockSupabaseClient)),
 }))
 
-// Mock @supabase/supabase-js (admin client)
-const mockAdminFrom = jest.fn()
-const mockAdminClient = { from: mockAdminFrom }
-
-jest.mock('@supabase/supabase-js', () => ({
-  createClient: jest.fn(() => mockAdminClient),
-}))
-
 function makeChain(data: unknown, error: unknown = null) {
   return {
     select: jest.fn().mockReturnThis(),
@@ -37,9 +29,7 @@ function makeChain(data: unknown, error: unknown = null) {
 describe('POST /api/scores/recalculate', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key'
-    mockAdminFrom.mockReturnValue(makeChain(null))
+    mockSupabaseFrom.mockReturnValue(makeChain(null))
   })
 
   it('returns 401 when no user', async () => {
@@ -57,7 +47,7 @@ describe('POST /api/scores/recalculate', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: false }, error: null }),
     }
-    mockSupabaseFrom.mockReturnValue(profileChain)
+    mockSupabaseFrom.mockReturnValueOnce(profileChain)
 
     const res = await POST()
     expect(res.status).toBe(403)
@@ -72,14 +62,14 @@ describe('POST /api/scores/recalculate', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: true }, error: null }),
     }
-    mockSupabaseFrom.mockReturnValue(profileChain)
+    mockSupabaseFrom.mockReturnValueOnce(profileChain)
 
     const uitslagChain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
     }
-    mockAdminFrom.mockReturnValueOnce(uitslagChain)
+    mockSupabaseFrom.mockReturnValueOnce(uitslagChain)
 
     const res = await POST()
     expect(res.status).toBe(400)
@@ -94,7 +84,7 @@ describe('POST /api/scores/recalculate', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: true }, error: null }),
     }
-    mockSupabaseFrom.mockReturnValue(profileChain)
+    mockSupabaseFrom.mockReturnValueOnce(profileChain)
 
     // uitslag OK
     const uitslagChain = {
@@ -106,7 +96,7 @@ describe('POST /api/scores/recalculate', () => {
     const predictionsChain = {
       select: jest.fn().mockResolvedValue({ data: null, error: { message: 'DB Error' } }),
     }
-    mockAdminFrom
+    mockSupabaseFrom
       .mockReturnValueOnce(uitslagChain)
       .mockReturnValueOnce(predictionsChain)
 
@@ -121,7 +111,7 @@ describe('POST /api/scores/recalculate', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: true }, error: null }),
     }
-    mockSupabaseFrom.mockReturnValue(profileChain)
+    mockSupabaseFrom.mockReturnValueOnce(profileChain)
 
     const uitslagChain = {
       select: jest.fn().mockReturnThis(),
@@ -131,7 +121,7 @@ describe('POST /api/scores/recalculate', () => {
     const predictionsChain = {
       select: jest.fn().mockResolvedValue({ data: [], error: null }),
     }
-    mockAdminFrom
+    mockSupabaseFrom
       .mockReturnValueOnce(uitslagChain)
       .mockReturnValueOnce(predictionsChain)
 
@@ -148,7 +138,7 @@ describe('POST /api/scores/recalculate', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: true }, error: null }),
     }
-    mockSupabaseFrom.mockReturnValue(profileChain)
+    mockSupabaseFrom.mockReturnValueOnce(profileChain)
 
     const uitslag = {
       id: 1,
@@ -174,7 +164,7 @@ describe('POST /api/scores/recalculate', () => {
     const upsertChain = {
       upsert: jest.fn().mockResolvedValue({ error: null }),
     }
-    mockAdminFrom
+    mockSupabaseFrom
       .mockReturnValueOnce(uitslagChain)
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(upsertChain)
@@ -198,7 +188,7 @@ describe('POST /api/scores/recalculate', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: true }, error: null }),
     }
-    mockSupabaseFrom.mockReturnValue(profileChain)
+    mockSupabaseFrom.mockReturnValueOnce(profileChain)
 
     // uitslag has null selectie and basis_xi
     const uitslag = { id: 1, selectie: null, basis_xi: null }
@@ -213,7 +203,7 @@ describe('POST /api/scores/recalculate', () => {
       select: jest.fn().mockResolvedValue({ data: predictions, error: null }),
     }
     const upsertChain = { upsert: jest.fn().mockResolvedValue({ error: null }) }
-    mockAdminFrom
+    mockSupabaseFrom
       .mockReturnValueOnce(uitslagChain)
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(upsertChain)
@@ -232,7 +222,7 @@ describe('POST /api/scores/recalculate', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: true }, error: null }),
     }
-    mockSupabaseFrom.mockReturnValue(profileChain)
+    mockSupabaseFrom.mockReturnValueOnce(profileChain)
 
     const uitslag = { id: 1, selectie: ['Van Dijk'], basis_xi: ['De Jong'] }
     const predictions = [{ user_id: 'u1', selectie: null, basis_xi: null }]
@@ -246,7 +236,7 @@ describe('POST /api/scores/recalculate', () => {
       select: jest.fn().mockResolvedValue({ data: predictions, error: null }),
     }
     const upsertChain = { upsert: jest.fn().mockResolvedValue({ error: null }) }
-    mockAdminFrom
+    mockSupabaseFrom
       .mockReturnValueOnce(uitslagChain)
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(upsertChain)
@@ -265,7 +255,7 @@ describe('POST /api/scores/recalculate', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { is_admin: true }, error: null }),
     }
-    mockSupabaseFrom.mockReturnValue(profileChain)
+    mockSupabaseFrom.mockReturnValueOnce(profileChain)
 
     const uitslagChain = {
       select: jest.fn().mockReturnThis(),
@@ -281,7 +271,7 @@ describe('POST /api/scores/recalculate', () => {
     const upsertChain = {
       upsert: jest.fn().mockResolvedValue({ error: { message: 'Upsert failed' } }),
     }
-    mockAdminFrom
+    mockSupabaseFrom
       .mockReturnValueOnce(uitslagChain)
       .mockReturnValueOnce(predictionsChain)
       .mockReturnValueOnce(upsertChain)

@@ -1,26 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createApiClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { countMatches } from '@/lib/scoring-utils'
 import { sendPushToUser } from '@/lib/push'
 
 export async function POST() {
-  const userSupabase = await createClient()
-  const { data: { user } } = await userSupabase.auth.getUser()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await userSupabase.from('profiles').select('is_admin').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!supabaseUrl || !serviceRoleKey) {
-    return NextResponse.json({ error: 'Supabase service-role configuratie ontbreekt.' }, { status: 500 })
-  }
-
-  const supabase = createApiClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false },
-  })
 
   const { data: uitslag, error: uitslagError } = await supabase.from('master_uitslag').select('*').eq('id', 1).single()
   if (uitslagError || !uitslag) return NextResponse.json({ error: uitslagError ? `Master uitslag fout: ${uitslagError.message} (${uitslagError.code})` : 'Master uitslag niet gevonden.' }, { status: 400 })
