@@ -161,6 +161,8 @@ const TEAM_NAME_MAP: Record<string, string> = {
   'DR Congo': 'Congo',
   'Congo DR': 'Congo',
   'Cape Verde': 'Kaapverdië',
+  'Cape Verde Islands': 'Kaapverdië',
+  'Cabo Verde': 'Kaapverdië',
   'Egypt': 'Egypte',
   'Uzbekistan': 'Oezbekistan',
   'Bosnia and Herzegovina': 'Bosnië',

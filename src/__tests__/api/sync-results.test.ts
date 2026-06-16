@@ -189,6 +189,86 @@ describe('POST /api/sync-results', () => {
     )
   })
 
+  it('maps Cape Verde Islands to Kaapverdië when syncing results', async () => {
+    setupEnv()
+    global.fetch = jest.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        matches: [
+          {
+            id: 537369,
+            status: 'FINISHED',
+            homeTeam: { name: 'Spain' },
+            awayTeam: { name: 'Cape Verde Islands' },
+            score: { fullTime: { home: 0, away: 0 } },
+          },
+        ],
+      }),
+    } as Response))
+
+    const updateEq = jest.fn(() => Promise.resolve({ error: null }))
+    const userClient = {
+      auth: {
+        getUser: jest.fn(() => Promise.resolve({ data: { user: { id: 'admin-user' } } })),
+      },
+      rpc: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      from: jest.fn((table: string) => {
+        if (table === 'profiles') {
+          return {
+            select: jest.fn(() => ({
+              eq: jest.fn(() => ({
+                single: jest.fn(() => Promise.resolve({ data: { is_admin: true }, error: null })),
+              })),
+            })),
+          }
+        }
+
+        if (table === 'matches') {
+          return {
+            select: jest.fn(() => ({
+              or: jest.fn(() => Promise.resolve({
+                data: [{
+                  id: 43,
+                  match_number: 43,
+                  external_api_id: null,
+                  home_team: 'Spanje',
+                  away_team: 'Kaapverdië',
+                  home_score: null,
+                  away_score: null,
+                  is_finished: false,
+                }],
+                error: null,
+              })),
+            })),
+            update: jest.fn(() => ({
+              eq: updateEq,
+            })),
+          }
+        }
+
+        return {
+          insert: jest.fn(() => Promise.resolve({ error: null })),
+        }
+      }),
+    }
+
+    jest.doMock('@supabase/supabase-js', () => ({
+      createClient: jest.fn(),
+    }))
+    jest.doMock('@/lib/supabase/server', () => ({
+      createClient: jest.fn(() => Promise.resolve(userClient)),
+    }))
+
+    const { POST } = await import('@/app/api/sync-results/route')
+    const res = await POST(new NextRequest('http://localhost:3000/api/sync-results', { method: 'POST' }))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.updated).toBe(1)
+    expect(body.unmatched).toBe(0)
+    expect(updateEq).toHaveBeenCalledWith('id', 43)
+  })
+
   it('uses the anon key and RPC path for cron syncs', async () => {
     setupEnv()
 
