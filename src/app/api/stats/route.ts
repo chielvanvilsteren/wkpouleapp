@@ -21,50 +21,80 @@ function isPassed(dateValue: string | null | undefined) {
 }
 
 export async function GET() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+  if (!supabaseUrl || !supabaseKey) {
+    return NextResponse.json(
+      { error: 'Stats configuratie ontbreekt op de server.' },
+      { status: 500 }
+    )
+  }
+
   const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseUrl,
     supabaseKey,
     { auth: { persistSession: false } }
   )
 
-  const { data: uitslag } = await admin
+  const { data: uitslag, error: uitslagError } = await admin
     .from('master_uitslag')
     .select('inzendingen_open, inzendingen_deadline, wk_poule_open, wk_poule_deadline, scores_zichtbaar, wk_scores_zichtbaar, selectie, basis_xi')
     .eq('id', 1)
     .single()
 
-  const preDeadlinePassed = isPassed(uitslag?.inzendingen_deadline as string | null | undefined)
-  const preLocked = !(uitslag?.scores_zichtbaar ?? false)
-    && (uitslag?.inzendingen_open ?? true)
+  if (uitslagError || !uitslag) {
+    return NextResponse.json(
+      { error: 'Stats instellingen konden niet worden geladen.' },
+      { status: 500 }
+    )
+  }
+
+  const preDeadlinePassed = isPassed(uitslag.inzendingen_deadline as string | null | undefined)
+  const preLocked = !(uitslag.scores_zichtbaar ?? false)
+    && (uitslag.inzendingen_open ?? true)
     && !preDeadlinePassed
 
-  const wkDeadlinePassed = isPassed(uitslag?.wk_poule_deadline as string | null | undefined)
-  const wkLocked = (uitslag?.wk_poule_open ?? true) && !wkDeadlinePassed
+  const wkDeadlinePassed = isPassed(uitslag.wk_poule_deadline as string | null | undefined)
+  const wkLocked = (uitslag.wk_poule_open ?? true) && !wkDeadlinePassed
 
-  const { data: profiles } = await admin
+  const { data: profiles, error: profilesError } = await admin
     .from('profiles')
     .select('id, display_name')
     .eq('is_deelnemer', true)
     .order('display_name')
+
+  if (profilesError) {
+    return NextResponse.json(
+      { error: 'Deelnemers konden niet worden geladen voor stats.' },
+      { status: 500 }
+    )
+  }
 
   const result: Record<string, unknown> = {
     pre_locked: preLocked,
     wk_locked: wkLocked,
     inzendingen_deadline_passed: preDeadlinePassed,
     wk_poule_deadline_passed: wkDeadlinePassed,
-    scores_zichtbaar: uitslag?.scores_zichtbaar ?? false,
-    wk_scores_zichtbaar: uitslag?.wk_scores_zichtbaar ?? false,
-    official_selectie: uitslag?.selectie ?? [],
-    official_basis_xi: uitslag?.basis_xi ?? [],
+    scores_zichtbaar: uitslag.scores_zichtbaar ?? false,
+    wk_scores_zichtbaar: uitslag.wk_scores_zichtbaar ?? false,
+    official_selectie: uitslag.selectie ?? [],
+    official_basis_xi: uitslag.basis_xi ?? [],
     profiles: profiles ?? [],
   }
 
   if (!preLocked) {
-    const { data: predictions } = await admin
+    const { data: predictions, error: predictionsError } = await admin
       .from('predictions')
       .select('user_id, selectie, basis_xi')
       .eq('is_definitief', true)
+
+    if (predictionsError) {
+      return NextResponse.json(
+        { error: 'Pre-pool stats konden niet worden geladen.' },
+        { status: 500 }
+      )
+    }
 
     const total = predictions?.length ?? 0
     result.total_pre = total
@@ -93,9 +123,16 @@ export async function GET() {
   }
 
   if (!wkLocked) {
-    const { data: incidents } = await admin
+    const { data: incidents, error: incidentsError } = await admin
       .from('wk_incidents_predictions')
       .select('user_id, wereldkampioen, topscorer_wk, rode_kaart, gele_kaart, geblesseerde, eerste_goal_nl')
+
+    if (incidentsError) {
+      return NextResponse.json(
+        { error: 'WK stats konden niet worden geladen.' },
+        { status: 500 }
+      )
+    }
 
     const total = incidents?.length ?? 0
     result.total_wk = total

@@ -21,7 +21,7 @@ export async function POST() {
   const upsertData = predictions.map((pred) => {
     const selectiePunten = countMatches(pred.selectie ?? [], uitslag.selectie ?? [])
     const basisXiPunten = countMatches(pred.basis_xi ?? [], uitslag.basis_xi ?? [])
-    const totaal = basisXiPunten
+    const totaal = selectiePunten + basisXiPunten
 
     return {
       user_id: pred.user_id,
@@ -71,7 +71,7 @@ export async function POST() {
       const credits = row.selectie_punten + row.basis_xi_punten
       sendPushToUser(supabase, row.user_id, {
         title: '⚽ Pre Poule scores bijgewerkt!',
-        body: `Jouw basis XI-score: ${row.totaal} punten · Je hebt ${credits} Flappy Bal credits verdiend`,
+        body: `Jouw score: ${row.totaal} punten · Je hebt ${credits} Flappy Bal credits verdiend`,
         url: '/ranglijst',
       }).catch(() => {/* ignore */})
     }

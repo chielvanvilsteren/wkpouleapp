@@ -307,17 +307,30 @@ export default function StatsPage() {
   const [data, setData] = useState<StatsData | null>(null)
   const [flappy, setFlappy] = useState<FlappyStatsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('pre')
 
   useEffect(() => {
+    async function loadJson<T>(url: string): Promise<T> {
+      const response = await fetch(url)
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(typeof body.error === 'string' ? body.error : 'Stats konden niet worden geladen.')
+      }
+      return body as T
+    }
+
     Promise.all([
-      fetch('/api/stats').then(r => r.json()),
-      fetch('/api/flappy-stats').then(r => r.json()),
+      loadJson<StatsData>('/api/stats'),
+      loadJson<FlappyStatsData>('/api/flappy-stats'),
     ]).then(([d, f]: [StatsData, FlappyStatsData]) => {
       setData(d)
       setFlappy(f)
+      setError(null)
       if (d.pre_locked && !d.wk_locked) setTab('wk')
       else if (!d.pre_locked) setTab('pre')
+    }).catch((err: unknown) => {
+      setError(err instanceof Error ? err.message : 'Stats konden niet worden geladen.')
     }).finally(() => setLoading(false))
   }, [])
 
@@ -343,14 +356,22 @@ export default function StatsPage() {
           <div className="text-center text-gray-400 animate-pulse py-12">Laden…</div>
         )}
 
-        {!loading && data?.pre_locked && data?.wk_locked && (
+        {!loading && error && (
+          <div className="card text-center py-12">
+            <div className="text-5xl mb-4">!</div>
+            <p className="text-gray-700 font-semibold">Stats konden niet worden geladen.</p>
+            <p className="text-gray-500 text-sm mt-2">{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && data?.pre_locked && data?.wk_locked && (
           <div className="card text-center py-12">
             <div className="text-5xl mb-4">🔒</div>
             <p className="text-gray-500 font-medium">Stats worden zichtbaar na de inzendingstermijn.</p>
           </div>
         )}
 
-        {!loading && tabOptions.length > 0 && (
+        {!loading && !error && tabOptions.length > 0 && (
           <>
             {/* Tabs */}
             <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">

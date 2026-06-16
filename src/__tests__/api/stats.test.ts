@@ -22,6 +22,7 @@ function chain(result: unknown) {
 
 function setupStatsMocks({
   master,
+  masterError = null,
   profiles = { data: [{ id: 'u1', display_name: 'Alice' }, { id: 'u2', display_name: 'Bob' }], error: null },
   incidents = {
     data: [
@@ -31,12 +32,13 @@ function setupStatsMocks({
     error: null,
   },
 }: {
-  master: Record<string, unknown>
+  master: Record<string, unknown> | null
+  masterError?: { message: string } | null
   profiles?: unknown
   incidents?: unknown
 }) {
   mockFrom.mockImplementation((table: string) => {
-    if (table === 'master_uitslag') return chain({ data: master, error: null })
+    if (table === 'master_uitslag') return chain({ data: master, error: masterError })
     if (table === 'profiles') return chain(profiles)
     if (table === 'wk_incidents_predictions') {
       return { select: jest.fn().mockResolvedValue(incidents) }
@@ -158,5 +160,21 @@ describe('GET /api/stats', () => {
     expect(body.wk_locked).toBe(true)
     expect(body.wk).toBeUndefined()
     expect(mockFrom).not.toHaveBeenCalledWith('wk_incidents_predictions')
+  })
+
+  it('returns an error instead of locked defaults when stats settings cannot be loaded', async () => {
+    setupStatsMocks({
+      master: null,
+      masterError: { message: 'permission denied' },
+    })
+
+    const res = await GET()
+    const body = await res.json()
+
+    expect(res.status).toBe(500)
+    expect(body).toEqual({ error: 'Stats instellingen konden niet worden geladen.' })
+    expect(body.pre_locked).toBeUndefined()
+    expect(body.wk_locked).toBeUndefined()
+    expect(mockFrom).not.toHaveBeenCalledWith('profiles')
   })
 })
