@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import WkPouleForm from '@/components/WkPouleForm'
 import type { Match, MatchPrediction, WkIncidentsPrediction } from '@/types'
 
@@ -101,7 +101,7 @@ describe('WkPouleForm', () => {
     expect(screen.getByText(/wedstrijden ingevuld/)).toBeInTheDocument()
   })
 
-  it('renders matches grouped by stage', () => {
+  it('renders match stage labels in the single list', () => {
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -128,7 +128,7 @@ describe('WkPouleForm', () => {
     expect(screen.getByText('Finale')).toBeInTheDocument()
   })
 
-  it('group-A is open by default, group-F is closed', () => {
+  it('shows all match rows without opening group accordions', () => {
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -138,32 +138,153 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    // Netherlands is in group-A (open) → visible as match row span
     const nlSpans = screen.getAllByText('Netherlands').filter(el => el.tagName === 'SPAN')
     expect(nlSpans.length).toBeGreaterThan(0)
-    // Germany is in group-F (closed) → no match row span visible
-    const deSpans = screen.queryAllByText('Germany').filter(el => el.tagName === 'SPAN')
-    expect(deSpans).toHaveLength(0)
+    const deSpans = screen.getAllByText('Germany').filter(el => el.tagName === 'SPAN')
+    expect(deSpans.length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: /Groep A/ })).not.toBeInTheDocument()
   })
 
-  it('clicking group header toggles accordion', () => {
+  it('sorts matches chronologically by Dutch kickoff time', () => {
+    const unsortedMatches: Match[] = [
+      {
+        id: 3,
+        match_number: 3,
+        stage: 'group',
+        group_name: 'D',
+        home_team: 'Turkey',
+        away_team: 'Paraguay',
+        match_date: '2026-06-20',
+        match_time: '05:00:00',
+        home_score: null,
+        away_score: null,
+        is_live: false,
+        is_finished: false,
+      },
+      {
+        id: 4,
+        match_number: 4,
+        stage: 'group',
+        group_name: 'D',
+        home_team: 'USA',
+        away_team: 'Australia',
+        match_date: '2026-06-19',
+        match_time: '21:00:00',
+        home_score: null,
+        away_score: null,
+        is_live: false,
+        is_finished: false,
+      },
+    ]
+
     render(
       <WkPouleForm
-        matches={groupMatches}
+        matches={unsortedMatches}
         initialPredictions={emptyPredictions}
         initialIncidents={emptyIncidents}
         isOpen
-        now={nowPast}
+        now="2026-06-19T12:00:00Z"
       />
     )
-    fireEvent.click(screen.getByText('Groep A'))
-    // After close, Netherlands span should be gone from match rows
-    const nlSpansClosed = screen.queryAllByText('Netherlands').filter(el => el.tagName === 'SPAN')
-    expect(nlSpansClosed).toHaveLength(0)
-    fireEvent.click(screen.getByText('Groep A'))
-    // After reopen, Netherlands span is back
-    const nlSpansOpen = screen.getAllByText('Netherlands').filter(el => el.tagName === 'SPAN')
-    expect(nlSpansOpen.length).toBeGreaterThan(0)
+
+    const rows = Array.from(document.querySelectorAll('[data-testid^="match-row-"]'))
+    expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
+      'match-row-4',
+      'match-row-3',
+    ])
+    expect(screen.getByText(/Vandaag/)).toBeInTheDocument()
+    expect(screen.getByText(/Morgen/)).toBeInTheDocument()
+  })
+
+  it('exports the chronological match list as CSV', async () => {
+    const createObjectURL = jest.fn(() => 'blob:wk-poule')
+    const revokeObjectURL = jest.fn()
+    const originalCreateObjectURL = URL.createObjectURL
+    const originalRevokeObjectURL = URL.revokeObjectURL
+
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectURL,
+    })
+
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const unsortedMatches: Match[] = [
+      {
+        id: 3,
+        match_number: 21,
+        stage: 'group',
+        group_name: 'D',
+        home_team: 'Turkey',
+        away_team: 'Paraguay',
+        match_date: '2026-06-20',
+        match_time: '05:00:00',
+        home_score: null,
+        away_score: null,
+        is_live: false,
+        is_finished: false,
+      },
+      {
+        id: 4,
+        match_number: 22,
+        stage: 'group',
+        group_name: 'D',
+        home_team: 'USA',
+        away_team: 'Australia',
+        match_date: '2026-06-19',
+        match_time: '21:00:00',
+        home_score: 2,
+        away_score: 1,
+        is_live: false,
+        is_finished: true,
+      },
+    ]
+    const initialPredictions: MatchPrediction[] = [
+      { id: 'pred-4', user_id: 'user-1', match_id: 4, home_score: 2, away_score: 1 },
+    ]
+
+    try {
+      render(
+        <WkPouleForm
+          matches={unsortedMatches}
+          initialPredictions={initialPredictions}
+          initialIncidents={emptyIncidents}
+          isOpen
+          now="2026-06-19T12:00:00Z"
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /CSV export/i }))
+
+      expect(clickSpy).toHaveBeenCalled()
+      expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:wk-poule')
+
+      const blob = createObjectURL.mock.calls[0][0] as Blob
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(reader.error)
+        reader.readAsText(blob)
+      })
+
+      expect(text).toContain('Wedstrijdnummer;Datum;Tijd;Fase;Thuis;Uit;Voorspelling thuis;Voorspelling uit;Uitslag thuis;Uitslag uit;Punten;Status')
+      expect(text).toContain('22;2026-06-19;21:00;Groep D;USA;Australia;2;1;2;1;3;Afgerond')
+      expect(text.indexOf('22;2026-06-19')).toBeLessThan(text.indexOf('21;2026-06-20'))
+    } finally {
+      clickSpy.mockRestore()
+      Object.defineProperty(URL, 'createObjectURL', {
+        configurable: true,
+        value: originalCreateObjectURL,
+      })
+      Object.defineProperty(URL, 'revokeObjectURL', {
+        configurable: true,
+        value: originalRevokeObjectURL,
+      })
+    }
   })
 
   it('shows lock icon when group stage is closed (isOpen=false)', () => {
@@ -575,8 +696,6 @@ describe('WkPouleForm', () => {
         now={nowFuture}
       />
     )
-    // Expand the r32 section (collapsed by default)
-    fireEvent.click(screen.getByText('Ronde van 32'))
     // Knockout match past kickoff should show lock icon
     expect(screen.getAllByText('🔒').length).toBeGreaterThan(0)
   })
@@ -647,8 +766,9 @@ describe('WkPouleForm', () => {
       />
     )
     expect(screen.getByText('2-1')).toBeInTheDocument()
-    expect(screen.getByText('3 pt')).toBeInTheDocument()
-    expect(screen.getByTestId('match-row-1')).toHaveClass('bg-emerald-50')
+    const row = screen.getByTestId('match-row-1')
+    expect(within(row).getByText('3 pt')).toBeInTheDocument()
+    expect(row).toHaveClass('bg-emerald-50')
   })
 
   it('shows 1 point and orange row for correct match result', () => {
@@ -668,8 +788,9 @@ describe('WkPouleForm', () => {
       />
     )
     expect(screen.getByText('3-2')).toBeInTheDocument()
-    expect(screen.getByText('1 pt')).toBeInTheDocument()
-    expect(screen.getByTestId('match-row-1')).toHaveClass('bg-orange-50')
+    const row = screen.getByTestId('match-row-1')
+    expect(within(row).getByText('1 pt')).toBeInTheDocument()
+    expect(row).toHaveClass('bg-orange-50')
   })
 
   it('shows 0 points and red row for wrong prediction', () => {
@@ -693,7 +814,7 @@ describe('WkPouleForm', () => {
     expect(screen.getByTestId('match-row-1')).toHaveClass('bg-red-50')
   })
 
-  it('puntenOpen accordion toggles scoring overview', () => {
+  it('shows scoring overview without an accordion', () => {
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -703,14 +824,8 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    // Initially the scoring table is not visible
-    expect(screen.queryByText('Exact score')).not.toBeInTheDocument()
-    // Click the Puntenverdeling button to open it
-    fireEvent.click(screen.getByText(/Puntenverdeling/))
     expect(screen.getByText('Exact score')).toBeInTheDocument()
-    // Click again to close
-    fireEvent.click(screen.getByText(/Puntenverdeling/))
-    expect(screen.queryByText('Exact score')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Puntenverdeling/ })).not.toBeInTheDocument()
   })
 
   it('CountrySelect text input onChange fires when countries is empty (no group matches)', () => {

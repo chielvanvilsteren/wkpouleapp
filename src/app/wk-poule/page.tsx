@@ -71,7 +71,7 @@ export default async function WkPoulePage() {
           ? <DeadlineCountdown deadlineIso={deadline.toISOString()} label="Deadline groepsfase" />
           : undefined}
       />
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-8">
         <WkPouleForm
           matches={matches}
           initialPredictions={predictions}

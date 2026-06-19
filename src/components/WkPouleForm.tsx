@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { matchPredictionPoints } from "@/lib/scoring-utils";
 import type { Match, MatchPrediction, WkIncidentsPrediction } from "@/types";
@@ -24,6 +24,76 @@ const STAGE_LABELS: Record<string, string> = {
   "3rd": "3e plaatswedstrijd",
   final: "Finale",
 };
+
+const SHORT_STAGE_LABELS: Record<string, string> = {
+  r32: "R32",
+  r16: "R16",
+  qf: "KF",
+  sf: "HF",
+  "3rd": "3e",
+  final: "Finale",
+};
+
+// Het WK 2026 valt in juni/juli, dus Nederlandse tijden zijn CEST.
+const CEST_OFFSET_HOURS = 2;
+
+const amsterdamDateFormatter = new Intl.DateTimeFormat("nl-NL", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "Europe/Amsterdam",
+});
+
+const amsterdamDateKeyFormatter = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Amsterdam",
+});
+
+function matchDateKey(match: Pick<Match, "match_date">) {
+  return match.match_date.slice(0, 10);
+}
+
+function matchTimeKey(match: Pick<Match, "match_time">) {
+  return (match.match_time ?? "00:00:00").slice(0, 8);
+}
+
+function amsterdamDateTimeToUtcMs(match: Pick<Match, "match_date" | "match_time">) {
+  const [year, month, day] = matchDateKey(match).split("-").map(Number);
+  const [hour = 0, minute = 0, second = 0] = matchTimeKey(match).split(":").map(Number);
+
+  return Date.UTC(year, month - 1, day, hour, minute, second)
+    - CEST_OFFSET_HOURS * 60 * 60 * 1000;
+}
+
+function formatMatchDate(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return amsterdamDateFormatter.format(new Date(Date.UTC(year, month - 1, day, 12)));
+}
+
+function dateKeyToUtcDay(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+function dateHeaderLabel(dateKey: string, nowIso: string) {
+  const todayKey = amsterdamDateKeyFormatter.format(new Date(nowIso));
+  const dayDiff = Math.round((dateKeyToUtcDay(dateKey) - dateKeyToUtcDay(todayKey)) / 86_400_000);
+  const formatted = formatMatchDate(dateKey);
+
+  if (dayDiff === -1) return `Gisteren · ${formatted}`;
+  if (dayDiff === 0) return `Vandaag · ${formatted}`;
+  if (dayDiff === 1) return `Morgen · ${formatted}`;
+  return formatted;
+}
+
+function stageLabel(match: Match) {
+  if (match.stage === "group") return `Groep ${match.group_name ?? "-"}`;
+  return STAGE_LABELS[match.stage] ?? match.stage;
+}
+
+function shortStageLabel(match: Match) {
+  if (match.stage === "group") return `Groep ${match.group_name ?? "-"}`;
+  return SHORT_STAGE_LABELS[match.stage] ?? match.stage;
+}
 
 function ScoreInput({
   value,
@@ -160,6 +230,27 @@ function resultTone(points: number | null) {
   };
 }
 
+function csvCell(value: string | number | null) {
+  if (value === null || value === "") return "";
+  const text = String(value).replace(/\r?\n/g, " ");
+  if (/[",;\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function downloadCsv(filename: string, rows: (string | number | null)[][]) {
+  const csv = rows.map((row) => row.map(csvCell).join(";")).join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}\r\n`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function WkPouleForm({
   matches,
   initialPredictions,
@@ -228,23 +319,11 @@ export default function WkPouleForm({
   );
   const [errorMsg, setErrorMsg] = useState("");
 
-  const [openGroups, setOpenGroups] = useState<Set<string>>(
-    new Set(["group-A"]),
-  );
-
   const setScore = (matchId: number, side: "home" | "away", val: number) => {
     setScores((prev) => {
       const next = new Map(prev);
       const cur = next.get(matchId)!;
       next.set(matchId, { ...cur, [side]: val });
-      return next;
-    });
-  };
-
-  const toggleGroup = (key: string) => {
-    setOpenGroups((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
   };
@@ -314,42 +393,21 @@ export default function WkPouleForm({
     setSaving(false);
   };
 
-  // Group matches by stage + group
-  const grouped: { key: string; label: string; matches: Match[] }[] = [];
-  const stageOrder = ["group", "r32", "r16", "qf", "sf", "3rd", "final"];
-
-  for (const stage of stageOrder) {
-    const stageMatches = matches.filter((m) => m.stage === stage);
-    if (stageMatches.length === 0) continue;
-
-    if (stage === "group") {
-      const groups = Array.from(
-        new Set(stageMatches.map((m) => m.group_name).filter(Boolean)),
-      ).sort() as string[];
-      for (const g of groups) {
-        grouped.push({
-          key: `group-${g}`,
-          label: `Groep ${g}`,
-          matches: stageMatches.filter((m) => m.group_name === g),
-        });
-      }
-    } else {
-      grouped.push({
-        key: stage,
-        label: STAGE_LABELS[stage],
-        matches: stageMatches,
-      });
-    }
-  }
-
   const canEdit = isOpen;
   const nowMs = new Date(now).getTime();
-  const matchKickoff = (match: Match) => {
-    if (match.match_time) {
-      return new Date(`${match.match_date}T${match.match_time}`).getTime();
-    }
-    return new Date(match.match_date).getTime();
-  };
+  const chronologicalMatches = useMemo(() => {
+    let previousDateKey = "";
+
+    return [...matches]
+      .sort((a, b) => amsterdamDateTimeToUtcMs(a) - amsterdamDateTimeToUtcMs(b) || a.match_number - b.match_number)
+      .map((match) => {
+        const dateKey = matchDateKey(match);
+        const startsNewDate = dateKey !== previousDateKey;
+        previousDateKey = dateKey;
+
+        return { match, dateKey, startsNewDate };
+      });
+  }, [matches]);
   const knockoutTeamsKnown = (match: Match) =>
     countriesSet.has(match.home_team) && countriesSet.has(match.away_team);
   const matchIsOpen = (match: Match) => {
@@ -358,7 +416,7 @@ export default function WkPouleForm({
       return isOpen;
     }
     // Knockout: no global deadline, teams must be known, lock 15 min before kick-off
-    return adminOpen && knockoutTeamsKnown(match) && matchKickoff(match) - 15 * 60 * 1000 > nowMs;
+    return adminOpen && knockoutTeamsKnown(match) && amsterdamDateTimeToUtcMs(match) - 15 * 60 * 1000 > nowMs;
   };
   const progressMatches = matches.filter((m) => m.stage === "group");
   const filledMatches = progressMatches.filter((m) =>
@@ -366,56 +424,100 @@ export default function WkPouleForm({
   ).length;
   const progressTotal = progressMatches.length;
 
-  const [puntenOpen, setPuntenOpen] = useState(false);
+  const handleCsvExport = () => {
+    const rows: (string | number | null)[][] = [
+      [
+        "Wedstrijdnummer",
+        "Datum",
+        "Tijd",
+        "Fase",
+        "Thuis",
+        "Uit",
+        "Voorspelling thuis",
+        "Voorspelling uit",
+        "Uitslag thuis",
+        "Uitslag uit",
+        "Punten",
+        "Status",
+      ],
+    ];
+
+    for (const { match, dateKey } of chronologicalMatches) {
+      const s = scores.get(match.id)!;
+      const hasActualScore = matchHasActualScore(match);
+      const points = hasActualScore
+        ? matchPredictionPoints(
+            { home_score: s.home, away_score: s.away },
+            { home_score: match.home_score, away_score: match.away_score },
+          )
+        : null;
+      const status = match.is_finished
+        ? "Afgerond"
+        : match.is_live
+          ? "Live"
+          : "Nog te spelen";
+
+      rows.push([
+        match.match_number,
+        dateKey,
+        match.match_time ? match.match_time.slice(0, 5) : "",
+        stageLabel(match),
+        match.home_team,
+        match.away_team,
+        s.home,
+        s.away,
+        hasActualScore ? match.home_score : null,
+        hasActualScore ? match.away_score : null,
+        points,
+        status,
+      ]);
+    }
+
+    downloadCsv("wk-poule-wedstrijden.csv", rows);
+  };
 
   return (
     <div className="space-y-6">
       {/* Puntenverdeling */}
       <div className="card p-0 overflow-hidden">
-        <button
-          className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          onClick={() => setPuntenOpen((v) => !v)}
-        >
-          <span>📊 Puntenverdeling</span>
-          <span className="text-gray-400 text-xs">{puntenOpen ? "▲" : "▼"}</span>
-        </button>
-        {puntenOpen && (
-          <div className="px-5 pb-5 pt-1 grid grid-cols-1 sm:grid-cols-3 gap-5 border-t border-gray-100">
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Wedstrijden</h3>
-              <table className="w-full text-sm">
-                <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-1 text-gray-700">Exact score</td><td className="py-1 text-right font-semibold text-oranje-600">3 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">Juist resultaat</td><td className="py-1 text-right font-semibold text-oranje-600">1 pt</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">NL Incidenten</h3>
-              <table className="w-full text-sm">
-                <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-1 text-gray-700">🟥 Rode kaart — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">🟥 Rode kaart — leeg + geen</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">🟨 Gele kaart — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">🩹 Geblesseerde — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">🩹 Geblesseerde — leeg + geen</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">⚽ Eerste doelpunt NL</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">🏆 Topscorer WK</td><td className="py-1 text-right font-semibold text-oranje-600">20 pt</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Toernooi</h3>
-              <table className="w-full text-sm">
-                <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-1 text-gray-700">🌍 Wereldkampioen</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">🏟️ Finalist (per land)</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
-                  <tr><td className="py-1 text-gray-700">🏟️ Beide finalisten correct</td><td className="py-1 text-right font-semibold text-oranje-600">+10 bonus</td></tr>
-                </tbody>
-              </table>
-            </div>
+        <div className="px-5 py-3 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-800">📊 Puntenverdeling</h2>
+        </div>
+        <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Wedstrijden</h3>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-gray-100">
+                <tr><td className="py-1 text-gray-700">Exact score</td><td className="py-1 text-right font-semibold text-oranje-600">3 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">Juist resultaat</td><td className="py-1 text-right font-semibold text-oranje-600">1 pt</td></tr>
+              </tbody>
+            </table>
           </div>
-        )}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">NL Incidenten</h3>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-gray-100">
+                <tr><td className="py-1 text-gray-700">🟥 Rode kaart — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">🟥 Rode kaart — leeg + geen</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">🟨 Gele kaart — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">🩹 Geblesseerde — juiste speler</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">🩹 Geblesseerde — leeg + geen</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">⚽ Eerste doelpunt NL</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">🏆 Topscorer WK</td><td className="py-1 text-right font-semibold text-oranje-600">20 pt</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Toernooi</h3>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-gray-100">
+                <tr><td className="py-1 text-gray-700">🌍 Wereldkampioen</td><td className="py-1 text-right font-semibold text-oranje-600">30 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">🏟️ Finalist (per land)</td><td className="py-1 text-right font-semibold text-oranje-600">10 pt</td></tr>
+                <tr><td className="py-1 text-gray-700">🏟️ Beide finalisten correct</td><td className="py-1 text-right font-semibold text-oranje-600">+10 bonus</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {!isOpen && (
@@ -440,103 +542,113 @@ export default function WkPouleForm({
         </span>
       </div>
 
-      {/* Match sections */}
-      {grouped.map(({ key, label, matches: groupMatches }) => (
-        <div key={key} className="card p-0 overflow-hidden">
-          <button
-            className="w-full flex items-center justify-between px-5 py-4 bg-knvb-500 text-white font-semibold hover:bg-knvb-600 transition-colors"
-            onClick={() => toggleGroup(key)}
-          >
-            <span>{label}</span>
-            <span className="text-white/70 text-sm">
-              {openGroups.has(key) ? "▲" : "▼"}
-            </span>
-          </button>
+      {/* Wedstrijden */}
+      <div className="card p-0 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-gray-800">Wedstrijden</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-medium text-gray-400">Nederlandse tijd</span>
+              <button
+                type="button"
+                onClick={handleCsvExport}
+                className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-oranje-500 focus:ring-offset-2"
+              >
+                CSV export
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {chronologicalMatches.map(({ match, dateKey, startsNewDate }) => {
+            const s = scores.get(match.id)!;
+            const hasActualScore = matchHasActualScore(match);
+            const points = hasActualScore
+              ? matchPredictionPoints(
+                  { home_score: s.home, away_score: s.away },
+                  { home_score: match.home_score, away_score: match.away_score },
+                )
+              : null;
+            const tone = resultTone(points);
+            const teamsKnown = match.stage === "group" || knockoutTeamsKnown(match);
+            const open = matchIsOpen(match);
 
-          {openGroups.has(key) && (
-            <div className="divide-y divide-gray-100">
-              {groupMatches.map((match) => {
-                const s = scores.get(match.id)!;
-                const hasActualScore = matchHasActualScore(match);
-                const points = hasActualScore
-                  ? matchPredictionPoints(
-                      { home_score: s.home, away_score: s.away },
-                      { home_score: match.home_score, away_score: match.away_score },
-                    )
-                  : null;
-                const tone = resultTone(points);
-                return (
-                  <div
-                    key={match.id}
-                    data-testid={`match-row-${match.id}`}
-                    className={`flex flex-wrap items-center gap-2 px-4 py-3 transition-colors sm:flex-nowrap ${tone.row}`}
-                  >
-                    <span className="text-xs text-gray-400 w-16 shrink-0">
-                      {new Date(match.match_date).toLocaleDateString("nl-NL", {
-                        day: "numeric",
-                        month: "short",
-                        timeZone: "Europe/Amsterdam",
-                      })}
-                      {match.match_time && (
-                        <span className="block text-gray-300">
-                          {match.match_time.slice(0, 5)}
-                        </span>
-                      )}
+            return (
+              <Fragment key={match.id}>
+                {startsNewDate && (
+                  <div className="bg-knvb-500 px-4 py-2 text-xs font-black uppercase tracking-wide text-white sm:px-5">
+                    {dateHeaderLabel(dateKey, now)}
+                  </div>
+                )}
+                <div
+                  data-testid={`match-row-${match.id}`}
+                  className={`flex flex-wrap items-center gap-2 px-3 py-3 transition-colors sm:flex-nowrap sm:px-4 ${tone.row}`}
+                >
+                  <span className="w-16 shrink-0 text-left">
+                    <span className="block text-sm font-black tabular-nums text-gray-700">
+                      {match.match_time ? match.match_time.slice(0, 5) : "--:--"}
                     </span>
-                    <span className={`flex-1 text-sm font-medium text-right truncate ${match.stage !== "group" && !knockoutTeamsKnown(match) ? "text-gray-400 italic" : "text-gray-800"}`}>
-                      {match.home_team}
+                    <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-gray-400" title={stageLabel(match)}>
+                      {shortStageLabel(match)}
                     </span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <ScoreInput
-                        value={s.home}
-                        onChange={(v) => setScore(match.id, "home", v)}
-                        disabled={!matchIsOpen(match)}
-                      />
-                      <span className="text-gray-400 font-bold">—</span>
-                      <ScoreInput
-                        value={s.away}
-                        onChange={(v) => setScore(match.id, "away", v)}
-                        disabled={!matchIsOpen(match)}
-                      />
-                    </div>
-                    <span className={`flex-1 text-sm font-medium text-left truncate ${match.stage !== "group" && !knockoutTeamsKnown(match) ? "text-gray-400 italic" : "text-gray-800"}`}>
-                      {match.away_team}
-                    </span>
-                    <div className="ml-[4.5rem] flex basis-full items-center justify-end gap-2 sm:ml-0 sm:basis-auto">
-                      {hasActualScore ? (
-                        <>
-                          <div className="w-16 shrink-0 text-right">
-                            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                              Uitslag
-                            </div>
-                            <div className={`text-sm font-black tabular-nums ${tone.result}`}>
-                              {match.home_score}-{match.away_score}
-                            </div>
+                  </span>
+                  <span className={`flex-1 truncate text-right text-sm font-medium ${teamsKnown ? "text-gray-800" : "italic text-gray-400"}`}>
+                    {match.home_team}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <ScoreInput
+                      value={s.home}
+                      onChange={(v) => setScore(match.id, "home", v)}
+                      disabled={!open}
+                    />
+                    <span className="font-bold text-gray-400">—</span>
+                    <ScoreInput
+                      value={s.away}
+                      onChange={(v) => setScore(match.id, "away", v)}
+                      disabled={!open}
+                    />
+                  </div>
+                  <span className={`flex-1 truncate text-left text-sm font-medium ${teamsKnown ? "text-gray-800" : "italic text-gray-400"}`}>
+                    {match.away_team}
+                  </span>
+                  <div className="ml-[4.5rem] flex basis-full items-center justify-end gap-2 sm:ml-0 sm:basis-auto">
+                    {hasActualScore ? (
+                      <>
+                        <div className="w-16 shrink-0 text-right">
+                          <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                            Uitslag
                           </div>
-                          <span
-                            className={`inline-flex w-14 shrink-0 items-center justify-center rounded-full px-2 py-1 text-xs font-black tabular-nums ${tone.badge}`}
-                          >
-                            {points} pt
-                          </span>
-                        </>
-                      ) : (
-                        <div className="hidden w-16 shrink-0 text-right text-xs text-gray-300 sm:block">
-                          -
+                          <div className={`text-sm font-black tabular-nums ${tone.result}`}>
+                            {match.home_score}-{match.away_score}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    {!matchIsOpen(match) && (
-                      match.stage !== "group" && !knockoutTeamsKnown(match)
-                        ? <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">nog niet bekend</span>
-                        : <span className="text-xs text-gray-400 shrink-0">🔒</span>
+                        <span
+                          className={`inline-flex w-14 shrink-0 items-center justify-center rounded-full px-2 py-1 text-xs font-black tabular-nums ${tone.badge}`}
+                        >
+                          {points} pt
+                        </span>
+                      </>
+                    ) : match.is_live ? (
+                      <span className="inline-flex w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 px-2 py-1 text-xs font-black text-orange-700 ring-1 ring-orange-200">
+                        Live
+                      </span>
+                    ) : (
+                      <div className="hidden w-16 shrink-0 text-right text-xs text-gray-300 sm:block">
+                        -
+                      </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  {!open && (
+                    !teamsKnown
+                      ? <span className="shrink-0 whitespace-nowrap text-xs text-gray-400">nog niet bekend</span>
+                      : <span className="shrink-0 text-xs text-gray-400">🔒</span>
+                  )}
+                </div>
+              </Fragment>
+            );
+          })}
         </div>
-      ))}
+      </div>
 
       {/* NL Incidents */}
       <div className="card">
