@@ -319,6 +319,21 @@ export default function WkPouleForm({
   );
   const [errorMsg, setErrorMsg] = useState("");
 
+  const canEdit = isOpen;
+  const nowMs = new Date(now).getTime();
+  const knockoutTeamsKnown = (match: Match) =>
+    countriesSet.has(match.home_team) && countriesSet.has(match.away_team);
+  const matchIsOpen = (match: Match) => {
+    if (match.stage === "group") {
+      // Group stage: open until global deadline, no per-match kickoff lock
+      return isOpen;
+    }
+    // Knockout: no global deadline, teams must be known, lock 15 min before kick-off
+    return adminOpen && knockoutTeamsKnown(match) && amsterdamDateTimeToUtcMs(match) - 15 * 60 * 1000 > nowMs;
+  };
+  const editableMatches = matches.filter(matchIsOpen);
+  const canSave = editableMatches.length > 0;
+
   const setScore = (matchId: number, side: "home" | "away", val: number) => {
     setScores((prev) => {
       const next = new Map(prev);
@@ -343,58 +358,65 @@ export default function WkPouleForm({
       return;
     }
 
-    // Save all match predictions
-    const matchPayloads = matches.map((m) => ({
+    // Save only predictions that are currently editable. Closed group matches
+    // must not be upserted again while saving knockout predictions.
+    const matchPayloads = editableMatches.map((m) => ({
       user_id: user.id,
       match_id: m.id,
       home_score: scores.get(m.id)!.home,
       away_score: scores.get(m.id)!.away,
     }));
 
-    const { error: matchError } = await supabase
-      .from("match_predictions")
-      .upsert(matchPayloads, { onConflict: "user_id,match_id" });
+    if (matchPayloads.length > 0) {
+      const { error: matchError } = await supabase
+        .from("match_predictions")
+        .upsert(matchPayloads, { onConflict: "user_id,match_id" });
 
-    if (matchError) {
-      setErrorMsg(matchError.message);
-      setSaveStatus("error");
-      setSaving(false);
-      return;
+      if (matchError) {
+        setErrorMsg(matchError.message);
+        setSaveStatus("error");
+        setSaving(false);
+        return;
+      }
     }
 
-    // Save incidents
-    const incidentsPayload = {
-      user_id: user.id,
-      rode_kaart: rodeKaart.trim(),
-      gele_kaart: geleKaart.trim(),
-      geblesseerde: geblesseerde.trim(),
-      eerste_goal_nl: eersteGoalNl.trim(),
-      topscorer_wk: topscorerWk.trim(),
-      wereldkampioen: wereldkampioen.trim(),
-      finale_team1: finaleTeam1.trim(),
-      finale_team2: finaleTeam2.trim(),
-      updated_at: new Date().toISOString(),
-    };
+    // Incident- en toernooivoorspellingen volgen de groepsdeadline.
+    if (canEdit) {
+      const incidentsPayload = {
+        user_id: user.id,
+        rode_kaart: rodeKaart.trim(),
+        gele_kaart: geleKaart.trim(),
+        geblesseerde: geblesseerde.trim(),
+        eerste_goal_nl: eersteGoalNl.trim(),
+        topscorer_wk: topscorerWk.trim(),
+        wereldkampioen: wereldkampioen.trim(),
+        finale_team1: finaleTeam1.trim(),
+        finale_team2: finaleTeam2.trim(),
+        updated_at: new Date().toISOString(),
+      };
 
-    const { error: incidentsError } = await supabase
-      .from("wk_incidents_predictions")
-      .upsert(incidentsPayload, { onConflict: "user_id" });
+      const { error: incidentsError } = await supabase
+        .from("wk_incidents_predictions")
+        .upsert(incidentsPayload, { onConflict: "user_id" });
 
-    if (incidentsError) {
-      setErrorMsg(incidentsError.message);
-      setSaveStatus("error");
-      setSaving(false);
-      return;
+      if (incidentsError) {
+        setErrorMsg(incidentsError.message);
+        setSaveStatus("error");
+        setSaving(false);
+        return;
+      }
     }
 
-    setSavedPredictionMatchIds(new Set(matches.map((m) => m.id)));
+    setSavedPredictionMatchIds((previous) => {
+      const next = new Set(previous);
+      editableMatches.forEach((match) => next.add(match.id));
+      return next;
+    });
     setSaveStatus("saved");
     setTimeout(() => setSaveStatus("idle"), 4000);
     setSaving(false);
   };
 
-  const canEdit = isOpen;
-  const nowMs = new Date(now).getTime();
   const chronologicalMatches = useMemo(() => {
     let previousDateKey = "";
 
@@ -408,16 +430,6 @@ export default function WkPouleForm({
         return { match, dateKey, startsNewDate };
       });
   }, [matches]);
-  const knockoutTeamsKnown = (match: Match) =>
-    countriesSet.has(match.home_team) && countriesSet.has(match.away_team);
-  const matchIsOpen = (match: Match) => {
-    if (match.stage === "group") {
-      // Group stage: open until global deadline, no per-match kickoff lock
-      return isOpen;
-    }
-    // Knockout: no global deadline, teams must be known, lock 15 min before kick-off
-    return adminOpen && knockoutTeamsKnown(match) && amsterdamDateTimeToUtcMs(match) - 15 * 60 * 1000 > nowMs;
-  };
   const progressMatches = matches.filter((m) => m.stage === "group");
   const filledMatches = progressMatches.filter((m) =>
     savedPredictionMatchIds.has(m.id),
@@ -522,8 +534,9 @@ export default function WkPouleForm({
 
       {!isOpen && (
         <div className="bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-lg text-sm font-medium">
-          ⚠️ WK Poule is gesloten. Voorspellingen kunnen niet meer aangepast
-          worden.
+          {adminOpen
+            ? "⚠️ De groepsfase is gesloten. Bekende knock-outwedstrijden kun je nog invullen tot 15 minuten voor de aftrap."
+            : "⚠️ WK Poule is gesloten. Voorspellingen kunnen niet meer aangepast worden."}
         </div>
       )}
 
@@ -772,7 +785,7 @@ export default function WkPouleForm({
       </div>
 
       {/* Save button */}
-      {canEdit && (
+      {canSave && (
         <div className="flex flex-col items-center gap-3">
           <button
             onClick={() => handleSave()}

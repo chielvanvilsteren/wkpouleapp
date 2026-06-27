@@ -186,6 +186,7 @@ function normalizeTeamName(apiName: string): string {
 // ─── Knockout team namen sync ─────────────────────────────────────────────────
 
 const API_STAGE_TO_DB: Record<string, string> = {
+  'LAST_32':              'r32',
   'ROUND_OF_32':          'r32',
   'LAST_16':              'r16',
   'ROUND_OF_16':          'r16',
@@ -205,6 +206,12 @@ function isPlaceholderTeam(name: string): boolean {
     name.includes('Groep') || name.includes('Winnaar') ||
     name.includes('Beste') || name.includes('Verliezer')
   )
+}
+
+function knownApiTeamName(team: ApiMatch['homeTeam'] | null | undefined): string | null {
+  const name = team?.name
+  if (!name || TBD_NAMES.has(name)) return null
+  return normalizeTeamName(name)
 }
 
 function utcToAmsterdam(utcDate: string): { date: string; time: string } {
@@ -250,12 +257,10 @@ async function syncKnockoutTeamNames() {
     return
   }
 
-  // Alleen knockout wedstrijden waarbij beide teams bekend zijn
+  // Neem ook wedstrijden mee waarvan slechts een van beide teams bekend is.
   const knockoutWithTeams = allMatches.filter((m) => {
     if (!API_STAGE_TO_DB[m.stage]) return false
-    if (!m.homeTeam?.name || TBD_NAMES.has(m.homeTeam.name)) return false
-    if (!m.awayTeam?.name || TBD_NAMES.has(m.awayTeam.name)) return false
-    return true
+    return knownApiTeamName(m.homeTeam) !== null || knownApiTeamName(m.awayTeam) !== null
   })
 
   if (knockoutWithTeams.length === 0) {
@@ -280,8 +285,8 @@ async function syncKnockoutTeamNames() {
   let updated = 0
 
   for (const apiMatch of knockoutWithTeams) {
-    const homeApi = normalizeTeamName(apiMatch.homeTeam.name)
-    const awayApi = normalizeTeamName(apiMatch.awayTeam.name)
+    const homeApi = knownApiTeamName(apiMatch.homeTeam)
+    const awayApi = knownApiTeamName(apiMatch.awayTeam)
     const dbStage = API_STAGE_TO_DB[apiMatch.stage]
     const { date: apiDate, time: apiTime } = utcToAmsterdam(apiMatch.utcDate)
 
@@ -298,12 +303,15 @@ async function syncKnockoutTeamNames() {
     }
 
     if (!dbMatch) {
-      warn(`Geen DB-match voor knockout: ${homeApi} - ${awayApi} (${dbStage} ${apiDate})`)
+      warn(`Geen DB-match voor knockout: ${homeApi ?? 'onbekend'} - ${awayApi ?? 'onbekend'} (${dbStage} ${apiDate})`)
       continue
     }
 
+    const targetHome = homeApi ?? dbMatch.home_team
+    const targetAway = awayApi ?? dbMatch.away_team
+
     // Sla over als teams al correct zijn
-    if (dbMatch.home_team === homeApi && dbMatch.away_team === awayApi) {
+    if (dbMatch.home_team === targetHome && dbMatch.away_team === targetAway) {
       continue
     }
 
@@ -316,8 +324,8 @@ async function syncKnockoutTeamNames() {
     const { error: updateError } = await supabase
       .from('matches')
       .update({
-        home_team: homeApi,
-        away_team: awayApi,
+        home_team: targetHome,
+        away_team: targetAway,
         external_api_id: apiMatch.id,
       })
       .eq('id', dbMatch.id)
@@ -327,7 +335,7 @@ async function syncKnockoutTeamNames() {
       continue
     }
 
-    log(`✅ Teamnamen bijgewerkt: #${dbMatch.match_number} (${dbStage}): ${homeApi} - ${awayApi}`)
+    log(`✅ Teamnamen bijgewerkt: #${dbMatch.match_number} (${dbStage}): ${targetHome} - ${targetAway}`)
     updated++
   }
 

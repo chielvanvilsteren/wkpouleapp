@@ -333,7 +333,7 @@ describe('WkPouleForm', () => {
     })
   })
 
-  it('isOpen=false shows closed banner', () => {
+  it('isOpen=false explains that knockout predictions remain available', () => {
     render(
       <WkPouleForm
         matches={groupMatches}
@@ -343,7 +343,45 @@ describe('WkPouleForm', () => {
         now={nowPast}
       />
     )
-    expect(screen.getByText(/WK Poule is gesloten/)).toBeInTheDocument()
+    expect(screen.getByText(/De groepsfase is gesloten/)).toBeInTheDocument()
+  })
+
+  it('keeps the save button visible for an open knockout match after the group deadline', async () => {
+    const knockoutMatch: Match = {
+      id: 20,
+      match_number: 73,
+      stage: 'r32',
+      group_name: null,
+      home_team: 'Netherlands',
+      away_team: 'Germany',
+      match_date: '2026-07-10',
+      match_time: '18:00:00',
+      home_score: null,
+      away_score: null,
+      is_live: false,
+      is_finished: false,
+    }
+
+    render(
+      <WkPouleForm
+        matches={[...groupMatches, knockoutMatch]}
+        initialPredictions={emptyPredictions}
+        initialIncidents={emptyIncidents}
+        isOpen={false}
+        adminOpen
+        now={nowPast}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Opslaan/ }))
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledTimes(1)
+    })
+    expect(mockUpsert.mock.calls[0][0]).toEqual([
+      { user_id: 'user-1', match_id: 20, home_score: 0, away_score: 0 },
+    ])
+    expect(mockFrom).not.toHaveBeenCalledWith('wk_incidents_predictions')
   })
 
   it('progress bar shows filled match count', () => {
