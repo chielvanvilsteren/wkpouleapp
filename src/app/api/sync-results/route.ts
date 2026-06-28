@@ -7,6 +7,7 @@
  */
 
 import { createClient as createApiClient, type SupabaseClient } from '@supabase/supabase-js'
+import { scoreWithoutShootout, type FootballDataScore } from '@/lib/football-data-score'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -31,9 +32,7 @@ interface ApiMatch {
   status: string
   homeTeam: { name: string }
   awayTeam: { name: string }
-  score: {
-    fullTime: { home: number | null; away: number | null }
-  }
+  score: FootballDataScore
 }
 
 interface DbMatch {
@@ -352,8 +351,7 @@ export async function POST(req: NextRequest) {
     for (const apiMatch of apiMatches) {
       const homeApi = normalizeTeam(apiMatch.homeTeam.name)
       const awayApi = normalizeTeam(apiMatch.awayTeam.name)
-      const homeScore = apiMatch.score.fullTime.home
-      const awayScore = apiMatch.score.fullTime.away
+      const { home: homeScore, away: awayScore } = scoreWithoutShootout(apiMatch.score)
 
       if (homeScore === null || awayScore === null) { skipped++; continue }
 

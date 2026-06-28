@@ -16,6 +16,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { scoreWithoutShootout, type FootballDataScore } from '../src/lib/football-data-score'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -39,9 +40,8 @@ interface ApiMatch {
   status: 'TIMED' | 'SCHEDULED' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'SUSPENDED' | 'POSTPONED' | 'CANCELLED' | 'AWARDED'
   homeTeam: { id: number; name: string; shortName: string; tla: string }
   awayTeam: { id: number; name: string; shortName: string; tla: string }
-  score: {
+  score: FootballDataScore & {
     winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null
-    fullTime: { home: number | null; away: number | null }
     halfTime: { home: number | null; away: number | null }
   }
   stage: string
@@ -393,8 +393,7 @@ async function syncResults() {
   for (const apiMatch of apiMatches) {
     const homeApi = normalizeTeamName(apiMatch.homeTeam.name)
     const awayApi = normalizeTeamName(apiMatch.awayTeam.name)
-    const homeScore = apiMatch.score.fullTime.home
-    const awayScore = apiMatch.score.fullTime.away
+    const { home: homeScore, away: awayScore } = scoreWithoutShootout(apiMatch.score)
 
     if (homeScore === null || awayScore === null) {
       warn(`Wedstrijd ${apiMatch.id} (${homeApi} - ${awayApi}) heeft geen score, overgeslagen`)

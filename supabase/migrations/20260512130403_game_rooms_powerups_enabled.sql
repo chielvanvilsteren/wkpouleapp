@@ -1,0 +1,1 @@
+ALTER TABLE game_rooms ADD COLUMN IF NOT EXISTS powerups_enabled BOOLEAN NOT NULL DEFAULT false;;

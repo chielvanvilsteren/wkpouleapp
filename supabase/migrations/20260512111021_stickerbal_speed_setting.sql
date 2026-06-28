@@ -1,0 +1,2 @@
+ALTER TABLE master_uitslag ADD COLUMN IF NOT EXISTS stickerbal_speed NUMERIC(3,1) DEFAULT 1.0;
+ALTER TABLE game_rooms ADD COLUMN IF NOT EXISTS speed_multiplier NUMERIC(3,1) DEFAULT 1.0;;

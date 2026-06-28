@@ -50,3 +50,5 @@ Thumbs.db
 .continue/
 skills-lock.json
 
+# Supabase CLI local project state
+supabase/.temp/
